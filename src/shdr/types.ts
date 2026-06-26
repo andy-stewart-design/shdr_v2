@@ -96,11 +96,16 @@ export type Expr<T extends GlslType> = {
 // Arithmetic method interfaces
 // ---------------------------------------------------------------------------
 
+// Scalar float expressions can be used on either side of vec arithmetic —
+// GLSL broadcasts them component-wise. Number literals already work; this
+// adds support for ExprProxy<"float"> (a runtime float expression).
+type ScalarOr<T extends GlslType> = Expr<T> | Expr<"float"> | number;
+
 export type ArithmeticMethods<T extends GlslType> = {
-  /** (a + b) */ add(other: Expr<T> | number): ExprProxy<T>;
-  /** (a - b) */ sub(other: Expr<T> | number): ExprProxy<T>;
-  /** (a * b) */ mul(other: Expr<T> | number): ExprProxy<T>;
-  /** (a / b) */ div(other: Expr<T> | number): ExprProxy<T>;
+  /** (a + b) */ add(other: ScalarOr<T>): ExprProxy<T>;
+  /** (a - b) */ sub(other: ScalarOr<T>): ExprProxy<T>;
+  /** (a * b) */ mul(other: ScalarOr<T>): ExprProxy<T>;
+  /** (a / b) */ div(other: ScalarOr<T>): ExprProxy<T>;
   /** (-a)    */ neg(): ExprProxy<T>;
 };
 
@@ -115,11 +120,11 @@ export type Mat2Methods = {
 
 // vec2 * mat2 → vec2 (left-multiply / row-vector form)
 export type Vec2Methods = {
-  mul(other: Expr<"vec2"> | Expr<"mat2"> | number): ExprProxy<"vec2">;
-  add(other: Expr<"vec2"> | number): ExprProxy<"vec2">;
-  sub(other: Expr<"vec2"> | number): ExprProxy<"vec2">;
-  div(other: Expr<"vec2"> | number): ExprProxy<"vec2">;
-  neg():                             ExprProxy<"vec2">;
+  mul(other: Expr<"vec2"> | Expr<"mat2"> | Expr<"float"> | number): ExprProxy<"vec2">;
+  add(other: Expr<"vec2"> | Expr<"float"> | number): ExprProxy<"vec2">;
+  sub(other: Expr<"vec2"> | Expr<"float"> | number): ExprProxy<"vec2">;
+  div(other: Expr<"vec2"> | Expr<"float"> | number): ExprProxy<"vec2">;
+  neg():                                              ExprProxy<"vec2">;
 };
 
 // ---------------------------------------------------------------------------
@@ -181,4 +186,7 @@ export type ShaderContext = {
   readonly time: ExprProxy<"float">;
   /** Canvas resolution in physical pixels (u_resolution uniform). */
   readonly resolution: ExprProxy<"vec2">;
+  /** Raw fragment pixel coordinates — gl_FragCoord.xy. Ranges from (0,0) to (width,height).
+   *  For normalized [0,1] UV coords use $.uv instead. */
+  readonly fragCoord: ExprProxy<"vec2">;
 };

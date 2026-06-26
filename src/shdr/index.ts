@@ -13,4 +13,19 @@ export type { Float as FloatT, Vec2 as Vec2T, Vec3 as Vec3T, Vec4 as Vec4T, Mat2
 export { fn } from "./fn.ts";
 
 // Builtins re-exported for direct use with compileFragment
-export { vec2, vec3, vec4, mat2, sin, cos, abs, fract, sqrt, floor, mix, smoothstep, radians, dot, length, add, sub, mul, div, neg } from "./builtins.ts";
+export { vec2, vec3, vec4, mat2,
+  // trig
+  sin, cos, asin, acos, atan,
+  // math
+  abs, sqrt, floor, ceil, sign, fract, mod, pow, exp, exp2, log, log2,
+  // interpolation
+  mix, smoothstep, step, clamp,
+  // geometry
+  dot, length, normalize, cross, reflect,
+  // unit conversion
+  radians,
+  // vector ops (also usable as free functions)
+  min, max,
+  // arithmetic operators as free functions
+  add, sub, mul, div, neg,
+} from "./builtins.ts";

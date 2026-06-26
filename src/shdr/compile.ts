@@ -1,5 +1,5 @@
 import { refProxy, toNode, glslTypeOf, compileExpr } from "./ast.ts";
-import { vec2, vec3, vec4, mat2, sin, cos, abs, fract, sqrt, floor, mix, smoothstep, radians, dot, length, add, sub, mul, div, neg } from "./builtins.ts";
+import { vec2, vec3, vec4, mat2, sin, cos, abs, fract, sqrt, floor, mix, smoothstep, radians, dot, length, add, sub, mul, div, neg, step, mod, asin, atan, min, max } from "./builtins.ts";
 import type { AstNode, BodyStatement, ConstStatement, Expr, ExprProxy, FnDef, GlslType, ShaderContext } from "./types.ts";
 
 // ---------------------------------------------------------------------------
@@ -114,6 +114,9 @@ export type Builtins = {
   mix: typeof mix; smoothstep: typeof smoothstep; radians: typeof radians;
   dot: typeof dot; length: typeof length;
   add: typeof add; sub: typeof sub; mul: typeof mul; div: typeof div; neg: typeof neg;
+  step: typeof step; mod: typeof mod;
+  asin: typeof asin; atan: typeof atan;
+  min: typeof min; max: typeof max;
 };
 
 export type FragmentFn = (ctx: { $: ShaderContext } & Builtins) => void;
@@ -170,9 +173,10 @@ export function compileFragment(fn: FragmentFn): string {
     get uv():         ExprProxy<"vec2">  { return refProxy(["uv"],           "vec2");  },
     get time():       ExprProxy<"float"> { return refProxy(["u_time"],       "float"); },
     get resolution(): ExprProxy<"vec2">  { return refProxy(["u_resolution"], "vec2");  },
+    get fragCoord(): ExprProxy<"vec2">   { return refProxy(["gl_FragCoord", "xy"], "vec2"); },
   };
 
-  fn({ $, vec2, vec3, vec4, mat2, sin, cos, abs, fract, sqrt, floor, mix, smoothstep, radians, dot, length, add, sub, mul, div, neg });
+  fn({ $, vec2, vec3, vec4, mat2, sin, cos, abs, fract, sqrt, floor, mix, smoothstep, radians, dot, length, add, sub, mul, div, neg, step, mod, asin, atan, min, max });
 
   const fnDefs = collectFnDefs(statements, constants);
 

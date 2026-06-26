@@ -64,6 +64,15 @@ export const abs   = makeScalarBuiltin("abs");
 export const fract = makeScalarBuiltin("fract");
 export const sqrt  = makeScalarBuiltin("sqrt");
 export const floor = makeScalarBuiltin("floor");
+export const asin  = makeScalarBuiltin("asin");
+export const acos  = makeScalarBuiltin("acos");
+export const ceil  = makeScalarBuiltin("ceil");
+export const sign  = makeScalarBuiltin("sign");
+export const exp   = makeScalarBuiltin("exp");
+export const exp2  = makeScalarBuiltin("exp2");
+export const log   = makeScalarBuiltin("log");
+export const log2  = makeScalarBuiltin("log2");
+export const normalize = makeScalarBuiltin("normalize");
 
 // ---------------------------------------------------------------------------
 // Multi-arg builtins
@@ -78,8 +87,11 @@ export function mix<T extends "float" | "vec2" | "vec3" | "vec4">(
   return makeCall<T>("mix", [a, b, t], type as T);
 }
 
-export function smoothstep(edge0: FloatArg, edge1: FloatArg, x: FloatArg): ExprProxy<"float"> {
-  return makeCall("smoothstep", [edge0, edge1, x], "float");
+export function smoothstep(edge0: FloatArg, edge1: FloatArg, x: FloatArg): ExprProxy<"float">;
+export function smoothstep<T extends "vec2" | "vec3" | "vec4">(edge0: FloatArg, edge1: FloatArg, x: Expr<T>): ExprProxy<T>;
+export function smoothstep(edge0: any, edge1: any, x: any): any {
+  const type: GlslType = typeof x === "number" ? "float" : glslTypeOf(x);
+  return makeCall("smoothstep", [edge0, edge1, x], type);
 }
 
 export function radians(deg: FloatArg): ExprProxy<"float"> {
@@ -95,6 +107,84 @@ export function dot(
 
 export function length(v: Expr<"vec2"> | Expr<"vec3"> | Expr<"vec4">): ExprProxy<"float"> {
   return makeCall("length", [v], "float");
+}
+
+// atan — one-arg (arctan) or two-arg (atan2)
+export function atan(x: FloatArg): ExprProxy<"float">;
+export function atan<T extends "float" | "vec2" | "vec3" | "vec4">(x: Expr<T>): ExprProxy<T>;
+export function atan(y: FloatArg, x: FloatArg): ExprProxy<"float">;
+export function atan<T extends "float" | "vec2" | "vec3" | "vec4">(y: Expr<T>, x: Expr<T> | FloatArg): ExprProxy<T>;
+export function atan(a: any, b?: any): any {
+  if (b === undefined) {
+    const type: GlslType = typeof a === "number" ? "float" : glslTypeOf(a);
+    return makeCall("atan", [a], type);
+  }
+  const type: GlslType = typeof a === "number" ? (typeof b === "number" ? "float" : glslTypeOf(b)) : glslTypeOf(a);
+  return makeCall("atan", [a, b], type);
+}
+
+// step — step(edge, x): result type matches x
+export function step(edge: FloatArg, x: FloatArg): ExprProxy<"float">;
+export function step<T extends "float" | "vec2" | "vec3" | "vec4">(edge: FloatArg, x: Expr<T>): ExprProxy<T>;
+export function step<T extends "float" | "vec2" | "vec3" | "vec4">(edge: Expr<T>, x: Expr<T>): ExprProxy<T>;
+export function step(edge: any, x: any): any {
+  const type: GlslType = typeof x === "number" ? "float" : glslTypeOf(x);
+  return makeCall("step", [edge, x], type);
+}
+
+// mod — mod(x, y): result type matches x
+export function mod(x: FloatArg, y: FloatArg): ExprProxy<"float">;
+export function mod<T extends "float" | "vec2" | "vec3" | "vec4">(x: Expr<T>, y: Expr<T> | FloatArg): ExprProxy<T>;
+export function mod(x: any, y: any): any {
+  const type: GlslType = typeof x === "number" ? "float" : glslTypeOf(x);
+  return makeCall("mod", [x, y], type);
+}
+
+// min / max — result type matches first arg
+export function min(x: FloatArg, y: FloatArg): ExprProxy<"float">;
+export function min<T extends "float" | "vec2" | "vec3" | "vec4">(x: Expr<T>, y: Expr<T> | FloatArg): ExprProxy<T>;
+export function min(x: any, y: any): any {
+  const type: GlslType = typeof x === "number" ? (typeof y === "number" ? "float" : glslTypeOf(y)) : glslTypeOf(x);
+  return makeCall("min", [x, y], type);
+}
+
+export function max(x: FloatArg, y: FloatArg): ExprProxy<"float">;
+export function max<T extends "float" | "vec2" | "vec3" | "vec4">(x: Expr<T>, y: Expr<T> | FloatArg): ExprProxy<T>;
+export function max(x: any, y: any): any {
+  const type: GlslType = typeof x === "number" ? (typeof y === "number" ? "float" : glslTypeOf(y)) : glslTypeOf(x);
+  return makeCall("max", [x, y], type);
+}
+
+// clamp(x, min, max) — result type matches x
+export function clamp(x: FloatArg, minVal: FloatArg, maxVal: FloatArg): ExprProxy<"float">;
+export function clamp<T extends "float" | "vec2" | "vec3" | "vec4">(x: Expr<T>, minVal: Expr<T> | FloatArg, maxVal: Expr<T> | FloatArg): ExprProxy<T>;
+export function clamp(x: any, minVal: any, maxVal: any): any {
+  const type: GlslType = typeof x === "number" ? "float" : glslTypeOf(x);
+  return makeCall("clamp", [x, minVal, maxVal], type);
+}
+
+// pow(x, y) — result type matches x
+export function pow(x: FloatArg, y: FloatArg): ExprProxy<"float">;
+export function pow<T extends "float" | "vec2" | "vec3" | "vec4">(x: Expr<T>, y: Expr<T> | FloatArg): ExprProxy<T>;
+export function pow(x: any, y: any): any {
+  const type: GlslType = typeof x === "number" ? "float" : glslTypeOf(x);
+  return makeCall("pow", [x, y], type);
+}
+
+// mix with bool mask (GLSL ES 3.00 extension, takes bvec)
+// Omitted for now — requires bool type support
+
+// cross product — vec3 only
+export function cross(a: Expr<"vec3">, b: Expr<"vec3">): ExprProxy<"vec3"> {
+  return makeCall("cross", [a, b], "vec3");
+}
+
+// reflect(I, N) — genType
+export function reflect(I: FloatArg, N: FloatArg): ExprProxy<"float">;
+export function reflect<T extends "float" | "vec2" | "vec3" | "vec4">(I: Expr<T>, N: Expr<T>): ExprProxy<T>;
+export function reflect(I: any, N: any): any {
+  const type: GlslType = typeof I === "number" ? "float" : glslTypeOf(I);
+  return makeCall("reflect", [I, N], type);
 }
 
 // ---------------------------------------------------------------------------
@@ -124,6 +214,8 @@ function binop(op: "+" | "-" | "*" | "/", a: AnyArg, b: AnyArg, type: GlslType):
 export function add(a: number, b: number): ExprProxy<"float">;
 export function add<T extends GlslType>(a: Expr<T>, b: Expr<T> | number): ExprProxy<T>;
 export function add<T extends GlslType>(a: number, b: Expr<T>): ExprProxy<T>;
+export function add<T extends "vec2" | "vec3" | "vec4">(a: Expr<"float">, b: Expr<T>): ExprProxy<T>;
+export function add<T extends "vec2" | "vec3" | "vec4">(a: Expr<T>, b: Expr<"float">): ExprProxy<T>;
 export function add(a: any, b: any): any {
   return binop("+", a as AnyArg, b as AnyArg, inferType(a as AnyArg, b as AnyArg));
 }
@@ -132,6 +224,8 @@ export function add(a: any, b: any): any {
 export function sub(a: number, b: number): ExprProxy<"float">;
 export function sub<T extends GlslType>(a: Expr<T>, b: Expr<T> | number): ExprProxy<T>;
 export function sub<T extends GlslType>(a: number, b: Expr<T>): ExprProxy<T>;
+export function sub<T extends "vec2" | "vec3" | "vec4">(a: Expr<"float">, b: Expr<T>): ExprProxy<T>;
+export function sub<T extends "vec2" | "vec3" | "vec4">(a: Expr<T>, b: Expr<"float">): ExprProxy<T>;
 export function sub(a: any, b: any): any {
   return binop("-", a as AnyArg, b as AnyArg, inferType(a as AnyArg, b as AnyArg));
 }
@@ -142,6 +236,8 @@ export function mul(a: Expr<"mat2">, b: Expr<"vec2">): ExprProxy<"vec2">;
 export function mul(a: Expr<"vec2">, b: Expr<"mat2">): ExprProxy<"vec2">;
 export function mul<T extends GlslType>(a: Expr<T>, b: Expr<T> | number): ExprProxy<T>;
 export function mul<T extends GlslType>(a: number, b: Expr<T>): ExprProxy<T>;
+export function mul<T extends "vec2" | "vec3" | "vec4">(a: Expr<"float">, b: Expr<T>): ExprProxy<T>;
+export function mul<T extends "vec2" | "vec3" | "vec4">(a: Expr<T>, b: Expr<"float">): ExprProxy<T>;
 export function mul(a: any, b: any): any {
   const ta = typeof a === "number" ? "float" : glslTypeOf(a as Expr<GlslType>);
   const tb = typeof b === "number" ? "float" : glslTypeOf(b as Expr<GlslType>);
@@ -155,6 +251,8 @@ export function mul(a: any, b: any): any {
 export function div(a: number, b: number): ExprProxy<"float">;
 export function div<T extends GlslType>(a: Expr<T>, b: Expr<T> | number): ExprProxy<T>;
 export function div<T extends GlslType>(a: number, b: Expr<T>): ExprProxy<T>;
+export function div<T extends "vec2" | "vec3" | "vec4">(a: Expr<"float">, b: Expr<T>): ExprProxy<T>;
+export function div<T extends "vec2" | "vec3" | "vec4">(a: Expr<T>, b: Expr<"float">): ExprProxy<T>;
 export function div(a: any, b: any): any {
   return binop("/", a as AnyArg, b as AnyArg, inferType(a as AnyArg, b as AnyArg));
 }
