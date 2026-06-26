@@ -1,63 +1,74 @@
 import "./style.css";
-import typescriptLogo from "./assets/typescript.svg";
-import viteLogo from "./assets/vite.svg";
-import heroImg from "./assets/hero.png";
-import { setupCounter } from "./counter.ts";
-import { shader } from "./shdr-typed-v2.ts";
+import { createShader } from "./shdr/index.ts";
 
-console.log(shader);
+const canvas = document.querySelector<HTMLCanvasElement>("#canvas")!;
 
-document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
-<section id="center">
-  <div class="hero">
-    <img src="${heroImg}" class="base" width="170" height="179">
-    <img src="${typescriptLogo}" class="framework" alt="TypeScript logo"/>
-    <img src="${viteLogo}" class="vite" alt="Vite logo" />
-  </div>
-  <div>
-    <h1>Get started</h1>
-    <p>Edit <code>src/main.ts</code> and save to test <code>HMR</code></p>
-  </div>
-  <button id="counter" type="button" class="counter"></button>
-</section>
+createShader({
+  canvas,
+  fragment: ({ $, vec3, vec4, sin, cos, mix, smoothstep }) => {
+    // ── Constants ──────────────────────────────────────────────────────────
+    const COLOR_GREEN = $.const(
+      "COLOR_GREEN",
+      vec3(76.0 / 255.0, 225.0 / 255.0, 96.0 / 255.0),
+    );
+    const COLOR_BLUE = $.const(
+      "COLOR_BLUE",
+      vec3(132.0 / 255.0, 180.0 / 255.0, 251.0 / 255.0),
+    );
+    const COLOR_ORANGE = $.const(
+      "COLOR_ORANGE",
+      vec3(255.0 / 255.0, 130.0 / 255.0, 90.0 / 255.0),
+    );
+    const COLOR_YELLOW = $.const(
+      "COLOR_YELLOW",
+      vec3(246.0 / 255.0, 224.0 / 255.0, 22.0 / 255.0),
+    );
 
-<div class="ticks"></div>
+    const WAVE_FREQ = $.const("WAVE_FREQ", 5.0);
+    const WAVE_AMP = $.const("WAVE_AMP", 30.0);
+    const WAVE_SPEED = $.const("WAVE_SPEED", 2.0);
 
-<section id="next-steps">
-  <div id="docs">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#documentation-icon"></use></svg>
-    <h2>Documentation</h2>
-    <p>Your questions, answered</p>
-    <ul>
-      <li>
-        <a href="https://vite.dev/" target="_blank">
-          <img class="logo" src="${viteLogo}" alt="" />
-          Explore Vite
-        </a>
-      </li>
-      <li>
-        <a href="https://www.typescriptlang.org" target="_blank">
-          <img class="button-icon" src="${typescriptLogo}" alt="">
-          Learn more
-        </a>
-      </li>
-    </ul>
-  </div>
-  <div id="social">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#social-icon"></use></svg>
-    <h2>Connect with us</h2>
-    <p>Join the Vite community</p>
-    <ul>
-      <li><a href="https://github.com/vitejs/vite" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#github-icon"></use></svg>GitHub</a></li>
-      <li><a href="https://chat.vite.dev/" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#discord-icon"></use></svg>Discord</a></li>
-      <li><a href="https://x.com/vite_js" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#x-icon"></use></svg>X.com</a></li>
-      <li><a href="https://bsky.app/profile/vite.dev" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#bluesky-icon"></use></svg>Bluesky</a></li>
-    </ul>
-  </div>
-</section>
+    // ── u_resolution: aspect-correct UV ───────────────────────────────────
+    // $.uv is gl_FragCoord / u_resolution, giving [0,1]² regardless of size.
+    // We shift to [-0.5, 0.5] and correct the x axis for aspect ratio so the
+    // wave pattern doesn't stretch when the window is resized.
+    const aspectRatio = $.let("aspectRatio", $.uv.x.div($.uv.y));
+    const tuv = $.let("tuv", $.uv.sub(0.5));
+    const tuvAspect = $.let(
+      "tuvAspect",
+      vec3(tuv.x.mul(aspectRatio), tuv.y, 0.0),
+    );
 
-<div class="ticks"></div>
-<section id="spacer"></section>
-`;
+    // ── u_time: animated wave distortion ──────────────────────────────────
+    // $.time advances every frame — drives the wave offset and a slow colour
+    // pulse so it's obvious the uniform is live.
+    const speed = $.let("speed", $.time.mul(WAVE_SPEED));
+    const pulse = $.let("pulse", sin($.time.mul(0.4)).mul(0.5).add(0.5)); // [0,1] slow oscillation
 
-setupCounter(document.querySelector<HTMLButtonElement>("#counter")!);
+    const distX = $.let(
+      "distX",
+      sin(tuvAspect.y.mul(WAVE_FREQ).add(speed)).div(WAVE_AMP),
+    );
+    const distY = $.let(
+      "distY",
+      cos(tuvAspect.x.mul(WAVE_FREQ).add(speed)).div(WAVE_AMP),
+    );
+
+    // ── Layer blending ─────────────────────────────────────────────────────
+    const layerBlend = $.let(
+      "layerBlend",
+      smoothstep(-0.3, 0.2, tuv.x.add(distX)),
+    );
+    const layer1 = $.let("layer1", mix(COLOR_ORANGE, COLOR_BLUE, layerBlend));
+    const layer2 = $.let("layer2", mix(COLOR_YELLOW, COLOR_GREEN, layerBlend));
+
+    // pulse slowly cross-fades between the two layer combos over time
+    const baseColor = $.let(
+      "baseColor",
+      mix(layer1, layer2, smoothstep(0.5, -0.3, tuv.y.add(distY))),
+    );
+    const color = $.let("color", mix(baseColor, layer2, pulse.mul(0.25)));
+
+    $.fragColor(vec4(color, 1.0));
+  },
+});
