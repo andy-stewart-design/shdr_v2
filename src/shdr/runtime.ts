@@ -15,27 +15,25 @@ export interface ShaderInstance {
 }
 
 // ---------------------------------------------------------------------------
-// Hardcoded vertex shader — draws one oversized triangle, no buffers needed
+// Vertex shader — GLSL ES 3.00, uses gl_VertexID so no buffer needed.
+// Draws one oversized triangle that covers the entire clip space.
 // ---------------------------------------------------------------------------
 
-const VERTEX_SHADER = /* glsl */ `
-  attribute vec2 a_position;
-  void main() {
-    gl_Position = vec4(a_position, 0.0, 1.0);
-  }
-`.trim();
-
-// Full-screen quad as two triangles (6 vertices, xy pairs)
-const QUAD = new Float32Array([
-  -1, -1,   1, -1,   -1,  1,
-  -1,  1,   1, -1,    1,  1,
-]);
+const VERTEX_SHADER = /* glsl */ `#version 300 es
+void main() {
+  vec2 positions[3] = vec2[3](
+    vec2(-1.0, -1.0),
+    vec2( 3.0, -1.0),
+    vec2(-1.0,  3.0)
+  );
+  gl_Position = vec4(positions[gl_VertexID], 0.0, 1.0);
+}`.trim();
 
 // ---------------------------------------------------------------------------
-// WebGL helpers
+// WebGL 2 helpers
 // ---------------------------------------------------------------------------
 
-function compileShader(gl: WebGLRenderingContext, type: number, src: string): WebGLShader {
+function compileShader(gl: WebGL2RenderingContext, type: number, src: string): WebGLShader {
   const shader = gl.createShader(type)!;
   gl.shaderSource(shader, src);
   gl.compileShader(shader);
@@ -47,7 +45,7 @@ function compileShader(gl: WebGLRenderingContext, type: number, src: string): We
   return shader;
 }
 
-function linkProgram(gl: WebGLRenderingContext, vert: WebGLShader, frag: WebGLShader): WebGLProgram {
+function linkProgram(gl: WebGL2RenderingContext, vert: WebGLShader, frag: WebGLShader): WebGLProgram {
   const program = gl.createProgram()!;
   gl.attachShader(program, vert);
   gl.attachShader(program, frag);
@@ -72,31 +70,22 @@ export function createShader(options: ShaderOptions): ShaderInstance {
       ? options.fragment
       : compileFragment(options.fragment);
 
-  // --- WebGL setup ---
-  const gl = canvas.getContext("webgl");
-  if (!gl) throw new Error("WebGL not supported — try a different browser");
+  // --- WebGL 2 setup ---
+  const gl = canvas.getContext("webgl2");
+  if (!gl) throw new Error("WebGL 2 not supported — try a different browser");
 
-  const vert = compileShader(gl, gl.VERTEX_SHADER, VERTEX_SHADER);
-  const frag = compileShader(gl, gl.FRAGMENT_SHADER, glsl);
+  const vert    = compileShader(gl, gl.VERTEX_SHADER, VERTEX_SHADER);
+  const frag    = compileShader(gl, gl.FRAGMENT_SHADER, glsl);
   const program = linkProgram(gl, vert, frag);
 
-  // Geometry
-  const buf = gl.createBuffer()!;
-  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-  gl.bufferData(gl.ARRAY_BUFFER, QUAD, gl.STATIC_DRAW);
-
-  const posLoc = gl.getAttribLocation(program, "a_position");
-  gl.enableVertexAttribArray(posLoc);
-  gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
-
-  // Uniform locations
+  // No vertex buffer needed — gl_VertexID drives the oversized triangle
   const uTime       = gl.getUniformLocation(program, "u_time");
   const uResolution = gl.getUniformLocation(program, "u_resolution");
 
   gl.useProgram(program);
 
   // --- Resize handling ---
-  // Store pending size from ResizeObserver; apply it inside the render loop
+  // Store pending size from ResizeObserver; apply inside the render loop
   // so the resize and redraw happen in the same frame — no blank-canvas flicker.
   const glRef = gl;
   let pendingWidth  = canvas.clientWidth  * devicePixelRatio;
@@ -133,7 +122,7 @@ export function createShader(options: ShaderOptions): ShaderInstance {
     glRef.viewport(0, 0, canvas.width, canvas.height);
     glRef.uniform1f(uTime, t);
     glRef.uniform2f(uResolution, canvas.width, canvas.height);
-    glRef.drawArrays(glRef.TRIANGLES, 0, 6);
+    glRef.drawArrays(glRef.TRIANGLES, 0, 3); // 3 vertices — one oversized triangle
 
     rafId = requestAnimationFrame(render);
   }
@@ -146,7 +135,6 @@ export function createShader(options: ShaderOptions): ShaderInstance {
       destroyed = true;
       cancelAnimationFrame(rafId);
       observer.disconnect();
-      glRef.deleteBuffer(buf);
       glRef.deleteShader(vert);
       glRef.deleteShader(frag);
       glRef.deleteProgram(program);

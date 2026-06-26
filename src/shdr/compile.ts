@@ -165,7 +165,7 @@ export function compileFragment(fn: FragmentFn): string {
     },
     const: makeConst,
     output(value: Expr<"vec4">) {
-      statements.push({ type: "assign", target: "gl_FragColor", value: toNode(value) });
+      statements.push({ type: "assign", target: "fragColor", value: toNode(value) });
     },
     get uv():         ExprProxy<"vec2">  { return refProxy(["uv"],           "vec2");  },
     get time():       ExprProxy<"float"> { return refProxy(["u_time"],       "float"); },
@@ -177,9 +177,11 @@ export function compileFragment(fn: FragmentFn): string {
   const fnDefs = collectFnDefs(statements, constants);
 
   return [
-    "precision mediump float;",
+    "#version 300 es",
+    "precision highp float;",
     "uniform float u_time;",
     "uniform vec2 u_resolution;",
+    "out vec4 fragColor;",
     ...(constants.length > 0 ? [""] : []),
     ...constants.map((c) => `const ${glslKeyword[c.varType]} ${c.name} = ${compileExpr(c.value)};`),
     ...(fnDefs.length > 0 ? [""] : []),
