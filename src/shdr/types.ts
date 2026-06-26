@@ -86,9 +86,12 @@ export type ShaderContext = {
   let<T extends GlslType>(name: string, value: ExprProxy<T>): ExprProxy<T>;
   /** Declare an auto-named local variable (_v0, _v1, …). */
   let<T extends GlslType>(value: ExprProxy<T>): ExprProxy<T>;
-  /** Declare a top-level GLSL constant (emitted before main). */
+  /** Declare a named top-level GLSL constant (emitted before main). */
   const<T extends GlslType>(name: string, value: ExprProxy<T>): ExprProxy<T>;
   const(name: string, value: number): ExprProxy<"float">;
+  /** Declare an auto-named top-level GLSL constant (_c0, _c1, …). */
+  const<T extends GlslType>(value: ExprProxy<T>): ExprProxy<T>;
+  const(value: number): ExprProxy<"float">;
   /** Write to gl_FragColor — must be vec4. */
   fragColor(value: Expr<"vec4">): void;
   /** Interpolated UV coord in [0,1]². */

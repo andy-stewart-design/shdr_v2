@@ -95,14 +95,39 @@ export function createShader(options: ShaderOptions): ShaderInstance {
 
   gl.useProgram(program);
 
-  // --- Render loop ---
-  // Capture gl in a local const so the closure doesn't re-read a narrowed type
+  // --- Resize handling ---
+  // Store pending size from ResizeObserver; apply it inside the render loop
+  // so the resize and redraw happen in the same frame — no blank-canvas flicker.
   const glRef = gl;
+  let pendingWidth  = canvas.clientWidth  * devicePixelRatio;
+  let pendingHeight = canvas.clientHeight * devicePixelRatio;
+
+  const observer = new ResizeObserver((entries) => {
+    const entry = entries[0];
+    const { inlineSize: w, blockSize: h } = entry.devicePixelContentBoxSize?.[0]
+      ?? { inlineSize: entry.contentRect.width  * devicePixelRatio,
+           blockSize:  entry.contentRect.height * devicePixelRatio };
+    pendingWidth  = Math.round(w);
+    pendingHeight = Math.round(h);
+  });
+  observer.observe(canvas, { box: "device-pixel-content-box" });
+
+  // Apply initial size immediately so the first frame is correctly sized
+  canvas.width  = pendingWidth;
+  canvas.height = pendingHeight;
+
+  // --- Render loop ---
   let rafId: number;
   let destroyed = false;
 
   function render(now: number) {
     if (destroyed) return;
+
+    // Apply any pending resize before drawing — same frame, no flicker
+    if (canvas.width !== pendingWidth || canvas.height !== pendingHeight) {
+      canvas.width  = pendingWidth;
+      canvas.height = pendingHeight;
+    }
 
     const t = now / 1000; // ms → seconds
     glRef.viewport(0, 0, canvas.width, canvas.height);
@@ -114,17 +139,6 @@ export function createShader(options: ShaderOptions): ShaderInstance {
   }
 
   rafId = requestAnimationFrame(render);
-
-  // --- Resize handling ---
-  const observer = new ResizeObserver(() => {
-    canvas.width  = canvas.clientWidth  * devicePixelRatio;
-    canvas.height = canvas.clientHeight * devicePixelRatio;
-  });
-  observer.observe(canvas);
-
-  // Trigger once immediately to set initial size
-  canvas.width  = canvas.clientWidth  * devicePixelRatio;
-  canvas.height = canvas.clientHeight * devicePixelRatio;
 
   // --- Cleanup ---
   return {
