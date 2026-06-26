@@ -1,4 +1,4 @@
-import { makeProxy, refProxy, toNode, glslTypeOf } from "./ast.ts";
+import { NODE, makeProxy, refProxy, toNode, glslTypeOf } from "./ast.ts";
 import type {
   AstNode,
   ExprProxy,
@@ -7,81 +7,143 @@ import type {
   GlslType,
   ParamsToExprs,
   ShaderFn,
+  TupleToExprs,
+  TupleShaderFn,
 } from "./types.ts";
 
 // ---------------------------------------------------------------------------
 // LocalContext — the $ available inside a defn body
 // ---------------------------------------------------------------------------
 
-type LocalContext = {
+export type LocalContext = {
   /** Declare a named local variable inside the function body. */
   let<T extends GlslType>(name: string, value: ExprProxy<T>): ExprProxy<T>;
   /** Declare an auto-named local variable (_l0, _l1, …). */
   let<T extends GlslType>(value: ExprProxy<T>): ExprProxy<T>;
 };
 
-// ---------------------------------------------------------------------------
-// defn
-// ---------------------------------------------------------------------------
-
-export function defn<
-  S extends Record<string, GlslType>,
-  R extends GlslType,
->(
-  name: string,
-  params: S,
-  returnType: R,
-  body: (args: ParamsToExprs<S>, $: LocalContext) => ExprProxy<R>,
-): ShaderFn<S, R> {
-
-  // Build a typed ExprProxy for each declared parameter
-  const paramRefs = Object.fromEntries(
-    Object.entries(params).map(([key, type]) => [key, refProxy([key], type as GlslType)]),
-  ) as unknown as ParamsToExprs<S>;
-
-  // Mini statement collector scoped to this function body
-  const localStatements: FnBodyStatement[] = [];
-  let localCounter = 0;
-
-  const local$: LocalContext = {
+function makeLocalContext(statements: FnBodyStatement[]): LocalContext {
+  let counter = 0;
+  return {
     let<T extends GlslType>(
       nameOrValue: string | ExprProxy<T>,
       maybeValue?: ExprProxy<T>,
     ): ExprProxy<T> {
-      const varName =
-        typeof nameOrValue === "string" ? nameOrValue : `_l${localCounter++}`;
-      const value =
-        typeof nameOrValue === "string" ? maybeValue! : nameOrValue;
-      localStatements.push({
-        type: "let",
-        name: varName,
-        varType: glslTypeOf(value),
-        value: toNode(value),
-      });
-      return refProxy<T>([varName], glslTypeOf(value) as T);
+      const name  = typeof nameOrValue === "string" ? nameOrValue : `_l${counter++}`;
+      const value = typeof nameOrValue === "string" ? maybeValue! : nameOrValue;
+      statements.push({ type: "let", name, varType: glslTypeOf(value), value: toNode(value) });
+      return refProxy<T>([name], glslTypeOf(value) as T);
     },
   };
+}
 
-  // Run the body eagerly to collect statements and capture the return expr
-  const returnValue = body(paramRefs, local$);
+// ---------------------------------------------------------------------------
+// defn — array form (positional args)
+//
+//   const rot = defn("rot", [Float], Mat2, ([a], $) => mat2(cos(a), ...));
+//   rot(angle)  // ExprProxy<"mat2">
+//
+// GLSL param names are auto-generated (_p0, _p1, …). The Vite transform
+// (plans/implicit-naming-transform.md) will eventually infer them from
+// the destructuring pattern.
+// ---------------------------------------------------------------------------
 
-  const def: FnDef = {
-    name,
-    params,
-    returnType,
-    body: localStatements,
-    returnExpr: toNode(returnValue),
-  };
+// Array form — put first so TS resolves it before the object form
+export function defn<T extends readonly GlslType[], R extends GlslType>(
+  name: string,
+  params: readonly [...T],
+  returnType: R,
+  body: (args: TupleToExprs<T>, $: LocalContext) => ExprProxy<R>,
+): TupleShaderFn<T, R>;
 
-  // The callable — takes a named-args object, produces a typed FnCallNode
-  const fn = ((args: { [K in keyof S]: ExprProxy<S[K]> | number }) => {
-    const argNodes: AstNode[] = Object.keys(params).map(
-      (k) => toNode(args[k as keyof typeof args] as ExprProxy<GlslType> | number),
+// Object form
+export function defn<S extends Record<string, GlslType>, R extends GlslType>(
+  name: string,
+  params: S,
+  returnType: R,
+  body: (args: ParamsToExprs<S>, $: LocalContext) => ExprProxy<R>,
+): ShaderFn<S, R>;
+
+// Implementation — body typed as (...args: any[]) => ... to satisfy both overloads
+export function defn<R extends GlslType>(
+  name: string,
+  params: ReadonlyArray<GlslType> | Record<string, GlslType>,
+  returnType: R,
+  body: (...args: any[]) => ExprProxy<R>, // eslint-disable-line @typescript-eslint/no-explicit-any
+): unknown {
+  const statements: FnBodyStatement[] = [];
+  const local$ = makeLocalContext(statements);
+
+  if (Array.isArray(params)) {
+    // ── Array form ──────────────────────────────────────────────────────────
+    const types = params as readonly GlslType[];
+
+    // Auto-generate GLSL param names and typed proxies
+    const paramSchema: Record<string, GlslType> = Object.fromEntries(
+      types.map((t, i) => [`_p${i}`, t]),
     );
-    return makeProxy<R>({ kind: "fncall", def, args: argNodes }, returnType);
-  }) as ShaderFn<S, R>;
+    const paramRefs = types.map((t, i) => refProxy([`_p${i}`], t));
 
-  Object.defineProperty(fn, "_def", { value: def, writable: false });
+    const returnValue = body(paramRefs, local$);
 
-  return fn;
+    const def: FnDef = {
+      name, params: paramSchema, returnType,
+      body: statements, returnExpr: toNode(returnValue),
+    };
+
+    const fn = ((...args: (ExprProxy<GlslType> | number)[]) => {
+      // Guard: if the first arg is a plain object (not an ExprProxy, not a number),
+      // the caller used named syntax rot({ a }) instead of positional rot(a).
+      if (
+        args.length > 0 &&
+        args[0] !== null &&
+        typeof args[0] === "object" &&
+        !(NODE in (args[0] as object))
+      ) {
+        throw new Error(
+          `defn '${name}' was defined with positional params [${types.join(", ")}] ` +
+          `but called with a named-args object. Use ${name}(${types.map((_, i) => `arg${i}`).join(", ")}) instead.`
+        );
+      }
+      const argNodes: AstNode[] = args.map(a => toNode(a));
+      return makeProxy({ kind: "fncall", def, args: argNodes }, returnType);
+    }) as unknown as TupleShaderFn<readonly GlslType[], GlslType>;
+
+    Object.defineProperty(fn, "_def", { value: def, writable: false });
+    return fn;
+
+  } else {
+    // ── Object form ─────────────────────────────────────────────────────────
+    const schema = params as Record<string, GlslType>;
+
+    const paramRefs = Object.fromEntries(
+      Object.entries(schema).map(([key, type]) => [key, refProxy([key], type)]),
+    );
+
+    const returnValue = body(paramRefs, local$);
+
+    const def: FnDef = {
+      name, params: schema, returnType,
+      body: statements, returnExpr: toNode(returnValue),
+    };
+
+    const fn = ((args: Record<string, ExprProxy<GlslType> | number>) => {
+      // Guard: if args is an ExprProxy (has NODE symbol), the caller used
+      // positional syntax rot(angle) instead of named rot({ a: angle }).
+      // Without strict TS this silently passes but causes a bad swizzle in GLSL.
+      if (args !== null && typeof args === "object" && NODE in (args as object)) {
+        throw new Error(
+          `defn '${name}' was defined with named params { ${Object.keys(schema).join(", ")} } ` +
+          `but called with positional arguments. Use ${name}({ ${Object.keys(schema).map((k, i) => `${k}: arg${i}`).join(", ")} }) instead.`
+        );
+      }
+      const argNodes: AstNode[] = Object.keys(schema).map(
+        k => toNode(args[k]),
+      );
+      return makeProxy({ kind: "fncall", def, args: argNodes }, returnType);
+    }) as unknown as ShaderFn<Record<string, GlslType>, GlslType>;
+
+    Object.defineProperty(fn, "_def", { value: def, writable: false });
+    return fn;
+  }
 }

@@ -1,6 +1,6 @@
 import "./style.css";
 import { createShader, compileFragment, vec2, vec3 } from "./shdr/index.ts";
-import { filmGrainNoise, noise, rot } from "./shader-utils.ts";
+import { filmGrain, noise, rot } from "./shader-utils.ts";
 
 // ── Shader ────────────────────────────────────────────────────────────────────
 
@@ -30,7 +30,7 @@ const fragment = compileFragment(
     // ── Global rotation that drifts slowly over time
     const tuv0 = $.let($.uv.sub(0.5));
     const degree = $.let(
-      noise({ p: vec2($.time.mul(ROTATION_NOISE_SPEED), tuv0.x.mul(tuv0.y)) }),
+      noise(vec2($.time.mul(ROTATION_NOISE_SPEED), tuv0.x.mul(tuv0.y))),
     );
 
     // Correct for aspect ratio, rotate, then restore — SSA replaces tuv.y *= / tuv *= / tuv.y *=
@@ -38,7 +38,7 @@ const fragment = compileFragment(
     const a = radians(
       degree.sub(0.5).mul(ROTATION_SPREAD_DEG).add(ROTATION_OFFSET_DEG),
     );
-    const tuv2 = $.let(rot({ a }).mul(tuv1));
+    const tuv2 = $.let(rot(a).mul(tuv1));
     const tuv3 = $.let(vec2(tuv2.x, tuv2.y.mul(aspectRatio)));
 
     // ── Wave distortion — SSA replaces tuv.x += / tuv.y +=
@@ -56,14 +56,14 @@ const fragment = compileFragment(
 
     // ── Layer blending with shared slight rotation
     // Original: (tuv * layerRot).x — vec2 left-multiply, now supported
-    const layerRot = $.let(rot({ a: radians(LAYER_ROTATION_DEG) }));
+    const layerRot = $.let(rot(radians(LAYER_ROTATION_DEG)));
     const layerBlend = $.let(smoothstep(-0.3, 0.2, tuv4.mul(layerRot).x));
     const layer1 = $.let(mix(COLOR_ORANGE, COLOR_BLUE, layerBlend));
     const layer2 = $.let(mix(COLOR_YELLOW, COLOR_GREEN, layerBlend));
     const color = $.let(mix(layer1, layer2, smoothstep(0.5, -0.3, tuv4.y)));
 
     // ── Film grain — SSA replaces color -=
-    const grain = $.let(filmGrainNoise({ uv: $.uv }));
+    const grain = $.let(filmGrain($.uv));
     const finalColor = $.let(color.sub(vec3(grain.mul(FILM_GRAIN_INTENSITY))));
 
     $.fragColor(vec4(finalColor, 1.0));

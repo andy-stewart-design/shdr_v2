@@ -3,7 +3,7 @@ export { compileFragment }                    from "./compile.ts";
 export { createShader }                       from "./runtime.ts";
 export type { ShaderOptions, ShaderInstance } from "./runtime.ts";
 export type { FragmentFn, Builtins }          from "./compile.ts";
-export type { ExprProxy, Expr, GlslType, ShaderContext, FnDef, ShaderFn, ParamsToExprs } from "./types.ts";
+export type { ExprProxy, Expr, GlslType, ShaderContext, FnDef, ShaderFn, ParamsToExprs, TupleShaderFn, TupleToExprs } from "./types.ts";
 
 // GLSL type tokens (dual-namespace: value + type)
 export { Float, Vec2, Vec3, Vec4, Mat2 } from "./glsl-types.ts";

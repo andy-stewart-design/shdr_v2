@@ -50,8 +50,24 @@ export type FnBodyStatement = { type: "let"; name: string; varType: GlslType; va
  * Args are passed positionally in param-schema key order.
  * Each arg accepts the matching ExprProxy type or a bare number.
  */
+/** Named-args callable (object form params). */
 export type ShaderFn<S extends Record<string, GlslType>, R extends GlslType> =
   ((args: { [K in keyof S]: ExprProxy<S[K]> | number }) => ExprProxy<R>)
+  & { readonly _def: FnDef };
+
+/** Maps a GlslType tuple to the corresponding ExprProxy tuple. */
+export type TupleToExprs<T extends readonly GlslType[]> = {
+  readonly [K in keyof T]: T[K] extends GlslType ? ExprProxy<T[K]> : never
+};
+
+/** Each positional arg accepts its matching ExprProxy or a bare number. */
+export type TupleArgs<T extends readonly GlslType[]> = {
+  [K in keyof T]: T[K] extends GlslType ? ExprProxy<T[K]> | number : never
+};
+
+/** Positional-args callable (array form params). */
+export type TupleShaderFn<T extends readonly GlslType[], R extends GlslType> =
+  ((...args: TupleArgs<T>) => ExprProxy<R>)
   & { readonly _def: FnDef };
 
 // ---------------------------------------------------------------------------
