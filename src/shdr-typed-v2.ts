@@ -29,7 +29,7 @@ type AstNode =
 // GLSL type universe
 // ---------------------------------------------------------------------------
 
-type GlslType = "float" | "vec2" | "vec3" | "vec4";
+type GlslType = "float" | "vec2" | "vec3" | "vec4" | "mat2";
 
 type Channels<T extends GlslType> = T extends "float"
   ? never
@@ -37,7 +37,9 @@ type Channels<T extends GlslType> = T extends "float"
     ? "x" | "y" | "r" | "g"
     : T extends "vec3"
       ? "x" | "y" | "z" | "r" | "g" | "b"
-      : "x" | "y" | "z" | "w" | "r" | "g" | "b" | "a";
+      : T extends "vec4"
+        ? "x" | "y" | "z" | "w" | "r" | "g" | "b" | "a"
+        : never; // mat2 has no swizzle channels
 
 // ---------------------------------------------------------------------------
 // Expr<T> — AST handle carrying both the node and the runtime GLSL type
@@ -65,15 +67,22 @@ function toNode(value: Expr<GlslType> | number): AstNode {
 // Arithmetic methods — chainable on every ExprProxy
 // ---------------------------------------------------------------------------
 
-// Arithmetic between same-type exprs preserves the type.
-// Scalars (number | float) can be used on either side of vec arithmetic
-// (GLSL broadcasts them), so we allow `Expr<T> | number` uniformly.
+// Standard arithmetic — same type in, same type out.
 type ArithmeticMethods<T extends GlslType> = {
   /** (a + b) */ add(other: Expr<T> | number): ExprProxy<T>;
   /** (a - b) */ sub(other: Expr<T> | number): ExprProxy<T>;
   /** (a * b) */ mul(other: Expr<T> | number): ExprProxy<T>;
   /** (a / b) */ div(other: Expr<T> | number): ExprProxy<T>;
   /** (-a)    */ neg(): ExprProxy<T>;
+};
+
+// mat2 is special: mat2 * vec2 → vec2 (type changes), mat2 * mat2 → mat2.
+type Mat2Methods = {
+  mul(other: Expr<"vec2">): ExprProxy<"vec2">;
+  mul(other: Expr<"mat2"> | number): ExprProxy<"mat2">;
+  add(other: Expr<"mat2">): ExprProxy<"mat2">;
+  sub(other: Expr<"mat2">): ExprProxy<"mat2">;
+  neg(): ExprProxy<"mat2">;
 };
 
 // ---------------------------------------------------------------------------
@@ -96,7 +105,7 @@ type SwizzleProps<T extends GlslType> = {
 
 export type ExprProxy<T extends GlslType> = Expr<T> &
   SwizzleProps<T> &
-  ArithmeticMethods<T>;
+  (T extends "mat2" ? Mat2Methods : ArithmeticMethods<T>);
 
 // ---------------------------------------------------------------------------
 // makeProxy — unified proxy factory (replaces the old exprProxy + makeCall)
@@ -121,7 +130,23 @@ function makeProxy<T extends GlslType>(node: AstNode, type: T): ExprProxy<T> {
 
       if (typeof prop !== "string") return undefined;
 
-      // Arithmetic methods — preserve the parent type
+      // mat2 * vec2 → vec2; everything else preserves the parent type
+      if (prop === "mul") {
+        return (other: Expr<GlslType> | number) => {
+          const otherType: GlslType =
+            typeof other === "number"
+              ? "float"
+              : glslTypeOf(other as Expr<GlslType>);
+          const resultType: GlslType =
+            type === "mat2" && otherType === "vec2" ? "vec2" : type;
+          return makeProxy(
+            { kind: "binop", op: "*", left: node, right: toNode(other) },
+            resultType,
+          );
+        };
+      }
+
+      // All other arithmetic — preserve the parent type
       if (prop in ARITH_OPS) {
         const op = ARITH_OPS[prop as ArithKey];
         return (other: Expr<GlslType> | number): ExprProxy<T> =>
@@ -239,6 +264,20 @@ export function vec4(
   return makeCall("vec4", args as (Expr<GlslType> | number)[], "vec4");
 }
 
+// mat2 — column-major constructor
+// mat2(col0, col1)        — two vec2 columns
+// mat2(m00, m01, m10, m11) — four floats, column-major
+export function mat2(col0: Expr<"vec2">, col1: Expr<"vec2">): ExprProxy<"mat2">;
+export function mat2(
+  m00: FloatArg,
+  m01: FloatArg,
+  m10: FloatArg,
+  m11: FloatArg,
+): ExprProxy<"mat2">;
+export function mat2(...args: (FloatArg | Expr<"vec2">)[]): ExprProxy<"mat2"> {
+  return makeCall("mat2", args as (Expr<GlslType> | number)[], "mat2");
+}
+
 // ---------------------------------------------------------------------------
 // Scalar/vector builtins — overloaded by input type (genType pattern)
 // ---------------------------------------------------------------------------
@@ -309,10 +348,15 @@ export function length(
 // ---------------------------------------------------------------------------
 
 type BodyStatement =
-  | { type: "let";    name: string; varType: GlslType; value: AstNode }
+  | { type: "let"; name: string; varType: GlslType; value: AstNode }
   | { type: "assign"; target: string; value: AstNode };
 
-type ConstStatement = { type: "const"; name: string; varType: GlslType; value: AstNode };
+type ConstStatement = {
+  type: "const";
+  name: string;
+  varType: GlslType;
+  value: AstNode;
+};
 
 type ShaderContext = {
   /** Declare a named local variable. */
@@ -334,6 +378,7 @@ type ShaderContext = {
 
 type Builtins = {
   vec2: typeof vec2;
+  mat2: typeof mat2;
   vec3: typeof vec3;
   vec4: typeof vec4;
   sin: typeof sin;
@@ -354,13 +399,33 @@ const glslKeyword: Record<GlslType, string> = {
   vec2: "vec2",
   vec3: "vec3",
   vec4: "vec4",
+  mat2: "mat2",
 };
 
 export function createShader(
   fn: (ctx: { $: ShaderContext } & Builtins) => void,
 ): string {
-  const constants:  ConstStatement[] = [];
-  const statements: BodyStatement[]  = [];
+  const constants: ConstStatement[] = [];
+  const statements: BodyStatement[] = [];
+
+  // Standalone overloaded function so TS can check both overload signatures.
+  // number overload first — TS picks the first matching overload top-to-bottom.
+  function makeConst(name: string, value: number): ExprProxy<"float">;
+  function makeConst<T extends GlslType>(
+    name: string,
+    value: ExprProxy<T>,
+  ): ExprProxy<T>;
+  function makeConst(name: string, value: unknown): unknown {
+    const isNum = typeof value === "number";
+    const node: AstNode = isNum
+      ? { kind: "number", value: value }
+      : toNode(value as Expr<GlslType>);
+    const varType: GlslType = isNum
+      ? "float"
+      : glslTypeOf(value as Expr<GlslType>);
+    constants.push({ type: "const", name, varType, value: node });
+    return refProxy([name], varType);
+  }
 
   let varCounter = 0;
   const $: ShaderContext = {
@@ -380,13 +445,7 @@ export function createShader(
       });
       return refProxy<T>([name], glslTypeOf(value) as T);
     },
-    const<T extends GlslType>(name: string, value: ExprProxy<T> | number): ExprProxy<T> {
-      const isNum = typeof value === "number";
-      const node: AstNode = isNum ? { kind: "number", value } : toNode(value as ExprProxy<T>);
-      const varType: GlslType = isNum ? "float" : glslTypeOf(value as ExprProxy<T>);
-      constants.push({ type: "const", name, varType, value: node });
-      return refProxy<T>([name], varType as T);
-    },
+    const: makeConst,
     fragColor(value: Expr<"vec4">) {
       statements.push({
         type: "assign",
@@ -402,6 +461,7 @@ export function createShader(
   fn({
     $,
     vec2,
+    mat2,
     vec3,
     vec4,
     sin,
@@ -422,7 +482,8 @@ export function createShader(
     "uniform vec2 u_resolution;",
     ...(constants.length > 0 ? [""] : []),
     ...constants.map(
-      (c) => `const ${glslKeyword[c.varType]} ${c.name} = ${compileExpr(c.value)};`
+      (c) =>
+        `const ${glslKeyword[c.varType]} ${c.name} = ${compileExpr(c.value)};`,
     ),
     "",
     "void main() {",
@@ -457,22 +518,46 @@ export function createShader(
 export const shader = createShader(
   ({ $, vec3, vec4, sin, mix, smoothstep }) => {
     // Top-level GLSL constants
-    const COLOR_GREEN  = $.const("COLOR_GREEN",  vec3(76.0  / 255.0, 225.0 / 255.0, 96.0  / 255.0));
-    const COLOR_BLUE   = $.const("COLOR_BLUE",   vec3(132.0 / 255.0, 180.0 / 255.0, 251.0 / 255.0));
-    const COLOR_ORANGE = $.const("COLOR_ORANGE", vec3(255.0 / 255.0, 130.0 / 255.0, 90.0  / 255.0));
-    const COLOR_YELLOW = $.const("COLOR_YELLOW", vec3(246.0 / 255.0, 224.0 / 255.0, 22.0  / 255.0));
-    const WAVE_FREQ    = $.const("WAVE_FREQUENCY", 5.0);
-    const WAVE_AMP     = $.const("WAVE_AMPLITUDE", 30.0);
+    const COLOR_GREEN = $.const(
+      "COLOR_GREEN",
+      vec3(76.0 / 255.0, 225.0 / 255.0, 96.0 / 255.0),
+    );
+    const COLOR_BLUE = $.const(
+      "COLOR_BLUE",
+      vec3(132.0 / 255.0, 180.0 / 255.0, 251.0 / 255.0),
+    );
+    const COLOR_ORANGE = $.const(
+      "COLOR_ORANGE",
+      vec3(255.0 / 255.0, 130.0 / 255.0, 90.0 / 255.0),
+    );
+    const COLOR_YELLOW = $.const(
+      "COLOR_YELLOW",
+      vec3(246.0 / 255.0, 224.0 / 255.0, 22.0 / 255.0),
+    );
+    const WAVE_FREQ = $.const("WAVE_FREQUENCY", 5.0);
+    const WAVE_AMP = $.const("WAVE_AMPLITUDE", 30.0);
 
     // main() body
-    const tuv        = $.let("tuv",        $.uv.sub(0.5));
-    const speed      = $.let("speed",      tuv.x.mul(0.0).add(1.0)); // placeholder for u_time
-    const distX      = $.let("distX",      sin(tuv.y.mul(WAVE_FREQ).add(speed)).div(WAVE_AMP));
-    const distY      = $.let("distY",      sin(tuv.x.mul(WAVE_FREQ).add(speed)).div(WAVE_AMP));
-    const layerBlend = $.let("layerBlend", smoothstep(-0.3, 0.2, tuv.x.add(distX)));
-    const layer1     = $.let("layer1",     mix(COLOR_ORANGE, COLOR_BLUE,   layerBlend));
-    const layer2     = $.let("layer2",     mix(COLOR_YELLOW, COLOR_GREEN,  layerBlend));
-    const color      = $.let("color",      mix(layer1, layer2, smoothstep(0.5, -0.3, tuv.y.add(distY))));
+    const tuv = $.let("tuv", $.uv.sub(0.5));
+    const speed = $.let("speed", tuv.x.mul(0.0).add(1.0)); // placeholder for u_time
+    const distX = $.let(
+      "distX",
+      sin(tuv.y.mul(WAVE_FREQ).add(speed)).div(WAVE_AMP),
+    );
+    const distY = $.let(
+      "distY",
+      sin(tuv.x.mul(WAVE_FREQ).add(speed)).div(WAVE_AMP),
+    );
+    const layerBlend = $.let(
+      "layerBlend",
+      smoothstep(-0.3, 0.2, tuv.x.add(distX)),
+    );
+    const layer1 = $.let("layer1", mix(COLOR_ORANGE, COLOR_BLUE, layerBlend));
+    const layer2 = $.let("layer2", mix(COLOR_YELLOW, COLOR_GREEN, layerBlend));
+    const color = $.let(
+      "color",
+      mix(layer1, layer2, smoothstep(0.5, -0.3, tuv.y.add(distY))),
+    );
 
     $.fragColor(vec4(color, 1.0));
   },
