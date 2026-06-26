@@ -25,10 +25,10 @@ const fragment = compileFragment(
     const ROT_OFFSET_DEG = 180;
     const LAYER_ROT_DEG = -5;
     const WAVE_FREQUENCY = 5;
-    const WAVE_AMPLITUDE = 30;
+    const WAVE_AMP = 30;
     const WAVE_SPEED = 2;
     const WAVE_Y_FREQ_SCALE = 1.5;
-    const WAVE_Y_AMPL_SCALE = 0.5;
+    const WAVE_Y_AMP_SCALE = 0.5;
 
     // ── Aspect ratio (u_resolution is available via $.resolution)
     const aspectRatio = $.resolution.x.div($.resolution.y);
@@ -45,13 +45,10 @@ const fragment = compileFragment(
 
     // ── Wave distortion — SSA replaces tuv.x += / tuv.y +=
     const speed = $.time.mul(WAVE_SPEED);
-
     const phaseX = tuv3.y.mul(WAVE_FREQUENCY).add(speed);
-    const tuv4x = tuv3.x.add(sin(phaseX).div(WAVE_AMPLITUDE));
+    const tuv4x = tuv3.x.add(sin(phaseX).div(WAVE_AMP));
     const phaseY = tuv3.x.mul(WAVE_FREQUENCY).mul(WAVE_Y_FREQ_SCALE).add(speed);
-    const tuv4y = tuv3.y.add(
-      sin(phaseY).div(mul(WAVE_AMPLITUDE, WAVE_Y_AMPL_SCALE)),
-    );
+    const tuv4y = tuv3.y.add(sin(phaseY).div(mul(WAVE_AMP, WAVE_Y_AMP_SCALE)));
     const tuv4 = vec2(tuv4x, tuv4y);
 
     // ── Layer blending with shared slight rotation
