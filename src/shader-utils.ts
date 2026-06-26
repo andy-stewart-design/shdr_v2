@@ -60,6 +60,8 @@ export const noise = fn("noise", [Vec2], Float, ([p], $) => {
     .add(0.5);
 });
 
+console.log(noise.glsl);
+
 // Intentionally has no u_time dependency — produces a static grain texture
 // baked into the gradient rather than flickering on every frame.
 export const filmGrain = fn("filmGrain", [Vec2], Float, ([uv]) =>

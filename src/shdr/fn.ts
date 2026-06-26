@@ -1,4 +1,5 @@
 import { NODE, makeProxy, refProxy, toNode, glslTypeOf } from "./ast.ts";
+import { compileFn } from "./compile.ts";
 import type {
   AstNode,
   ExprProxy,
@@ -109,7 +110,8 @@ export function fn<R extends GlslType>(
       return makeProxy({ kind: "fncall", def, args: argNodes }, returnType);
     }) as unknown as TupleShaderFn<readonly GlslType[], GlslType>;
 
-    Object.defineProperty(fn, "_def", { value: def, writable: false });
+    Object.defineProperty(fn, "_def",  { value: def, writable: false });
+    Object.defineProperty(fn, "glsl",  { get: () => compileFn(fn as { _def: typeof def }), enumerable: true });
     return fn;
 
   } else {
@@ -143,7 +145,8 @@ export function fn<R extends GlslType>(
       return makeProxy({ kind: "fncall", def, args: argNodes }, returnType);
     }) as unknown as ShaderFn<Record<string, GlslType>, GlslType>;
 
-    Object.defineProperty(fn, "_def", { value: def, writable: false });
+    Object.defineProperty(fn, "_def",  { value: def, writable: false });
+    Object.defineProperty(fn, "glsl",  { get: () => compileFn(fn as { _def: typeof def }), enumerable: true });
     return fn;
   }
 }

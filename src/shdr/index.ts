@@ -1,5 +1,5 @@
 // Public API
-export { compileFragment }                    from "./compile.ts";
+export { compileFragment, compileFn }         from "./compile.ts";
 export { createShader }                       from "./runtime.ts";
 export type { ShaderOptions, ShaderInstance } from "./runtime.ts";
 export type { FragmentFn, Builtins }          from "./compile.ts";

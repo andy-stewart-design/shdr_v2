@@ -53,7 +53,7 @@ export type FnBodyStatement = { type: "let"; name: string; varType: GlslType; va
 /** Named-args callable (object form params). */
 export type ShaderFn<S extends Record<string, GlslType>, R extends GlslType> =
   ((args: { [K in keyof S]: ExprProxy<S[K]> | number }) => ExprProxy<R>)
-  & { readonly _def: FnDef };
+  & { readonly _def: FnDef; readonly glsl: string };
 
 /** Maps a GlslType tuple to the corresponding ExprProxy tuple. */
 export type TupleToExprs<T extends readonly GlslType[]> = {
@@ -68,7 +68,7 @@ export type TupleArgs<T extends readonly GlslType[]> = {
 /** Positional-args callable (array form params). */
 export type TupleShaderFn<T extends readonly GlslType[], R extends GlslType> =
   ((...args: TupleArgs<T>) => ExprProxy<R>)
-  & { readonly _def: FnDef };
+  & { readonly _def: FnDef; readonly glsl: string };
 
 // ---------------------------------------------------------------------------
 // GLSL type universe

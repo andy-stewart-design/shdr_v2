@@ -10,30 +10,24 @@ import type { AstNode, BodyStatement, ConstStatement, Expr, ExprProxy, FnDef, Gl
 // FnDef collection + emission
 // ---------------------------------------------------------------------------
 
-// Walk the full AST of a compiled fragment and collect all FnDefs in the
-// order they must be emitted (dependencies before dependents).
-function collectFnDefs(stmts: BodyStatement[], consts: ConstStatement[]): FnDef[] {
-  const seen    = new Set<string>(); // fully processed
-  const stack   = new Set<string>(); // currently on the DFS path — cycle detection
+// Shared DFS walker — collects FnDefs in topological order (deps first).
+function makeFnDefCollector() {
+  const seen    = new Set<string>();
+  const stack   = new Set<string>();
   const ordered: FnDef[] = [];
 
   function walkNode(node: AstNode): void {
     switch (node.kind) {
       case "fncall": {
         const { name } = node.def;
-
         if (stack.has(name)) {
-          const path = [...stack, name].join(" → ");
+          const path = [...stack, name].join(" \u2192 ");
           throw new Error(`Circular dependency detected in shader functions: ${path}`);
         }
-
-        // Walk args first so any deps they carry are registered
         for (const arg of node.args) walkNode(arg);
-
         if (!seen.has(name)) {
           seen.add(name);
           stack.add(name);
-          // Recurse into the function's own body to find nested deps
           for (const s of node.def.body) walkNode(s.value);
           walkNode(node.def.returnExpr);
           stack.delete(name);
@@ -50,9 +44,24 @@ function collectFnDefs(stmts: BodyStatement[], consts: ConstStatement[]): FnDef[
     }
   }
 
+  return { walkNode, ordered };
+}
+
+// Walk the full AST of a compiled fragment and collect all FnDefs.
+function collectFnDefs(stmts: BodyStatement[], consts: ConstStatement[]): FnDef[] {
+  const { walkNode, ordered } = makeFnDefCollector();
   for (const c of consts) walkNode(c.value);
   for (const s of stmts)  walkNode(s.value);
+  return ordered;
+}
 
+// Collect deps for a single FnDef (used by compileFn).
+function collectFnDefsFrom(def: FnDef): FnDef[] {
+  const { walkNode, ordered } = makeFnDefCollector();
+  for (const s of def.body) walkNode(s.value);
+  walkNode(def.returnExpr);
+  // Push the root def itself last (after all its deps)
+  ordered.push(def);
   return ordered;
 }
 
@@ -73,6 +82,25 @@ function compileFnDef(def: FnDef): string {
     ...bodyLines,
     `}`,
   ].join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// compileFn — inspect a single fn() result as standalone GLSL
+// ---------------------------------------------------------------------------
+
+/**
+ * Compile a fn()-defined function to a GLSL string, including any
+ * dependencies it calls. Useful for logging and debugging.
+ *
+ * @example
+ * import { rot } from "./shader-utils";
+ * console.log(compileFn(rot));
+ * // mat2 rot(float _p0) { ... }
+ */
+export function compileFn(shaderFn: { readonly _def: FnDef }): string {
+  return collectFnDefsFrom(shaderFn._def)
+    .map(compileFnDef)
+    .join("\n");
 }
 
 // ---------------------------------------------------------------------------
