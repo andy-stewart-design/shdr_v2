@@ -1,4 +1,4 @@
-import { makeCall, glslTypeOf } from "./ast.ts";
+import { makeCall, makeProxy, glslTypeOf, toNode } from "./ast.ts";
 import type { Expr, ExprProxy, GlslType } from "./types.ts";
 
 type FloatArg = Expr<"float"> | number;
@@ -95,4 +95,75 @@ export function dot(
 
 export function length(v: Expr<"vec2"> | Expr<"vec3"> | Expr<"vec4">): ExprProxy<"float"> {
   return makeCall("length", [v], "float");
+}
+
+// ---------------------------------------------------------------------------
+// Standalone arithmetic operators
+//
+// Mirror the chainable methods on ExprProxy but callable as free functions,
+// so plain numbers can be used without a proxy as the receiver:
+//
+//   mul(1.5, 0.5)              // (1.5 * 0.5)  — both numbers
+//   add(tuv.x, distX)          // (tuv.x + distX)
+//   mul(WAVE_FREQ, WAVE_SCALE) // (WAVE_FREQ * WAVE_SCALE)
+// ---------------------------------------------------------------------------
+
+type AnyArg = Expr<GlslType> | number;
+
+function inferType(a: AnyArg, b: AnyArg): GlslType {
+  if (typeof a !== "number") return glslTypeOf(a);
+  if (typeof b !== "number") return glslTypeOf(b);
+  return "float";
+}
+
+function binop(op: "+" | "-" | "*" | "/", a: AnyArg, b: AnyArg, type: GlslType): ExprProxy<GlslType> {
+  return makeProxy({ kind: "binop", op, left: toNode(a), right: toNode(b) }, type);
+}
+
+// add
+export function add(a: number, b: number): ExprProxy<"float">;
+export function add<T extends GlslType>(a: Expr<T>, b: Expr<T> | number): ExprProxy<T>;
+export function add<T extends GlslType>(a: number, b: Expr<T>): ExprProxy<T>;
+export function add(a: any, b: any): any {
+  return binop("+", a as AnyArg, b as AnyArg, inferType(a as AnyArg, b as AnyArg));
+}
+
+// sub
+export function sub(a: number, b: number): ExprProxy<"float">;
+export function sub<T extends GlslType>(a: Expr<T>, b: Expr<T> | number): ExprProxy<T>;
+export function sub<T extends GlslType>(a: number, b: Expr<T>): ExprProxy<T>;
+export function sub(a: any, b: any): any {
+  return binop("-", a as AnyArg, b as AnyArg, inferType(a as AnyArg, b as AnyArg));
+}
+
+// mul — includes mat2*vec2 and vec2*mat2 → vec2
+export function mul(a: number, b: number): ExprProxy<"float">;
+export function mul(a: Expr<"mat2">, b: Expr<"vec2">): ExprProxy<"vec2">;
+export function mul(a: Expr<"vec2">, b: Expr<"mat2">): ExprProxy<"vec2">;
+export function mul<T extends GlslType>(a: Expr<T>, b: Expr<T> | number): ExprProxy<T>;
+export function mul<T extends GlslType>(a: number, b: Expr<T>): ExprProxy<T>;
+export function mul(a: any, b: any): any {
+  const ta = typeof a === "number" ? "float" : glslTypeOf(a as Expr<GlslType>);
+  const tb = typeof b === "number" ? "float" : glslTypeOf(b as Expr<GlslType>);
+  const type: GlslType =
+    (ta === "mat2" && tb === "vec2") || (ta === "vec2" && tb === "mat2")
+      ? "vec2" : inferType(a as AnyArg, b as AnyArg);
+  return binop("*", a as AnyArg, b as AnyArg, type);
+}
+
+// div
+export function div(a: number, b: number): ExprProxy<"float">;
+export function div<T extends GlslType>(a: Expr<T>, b: Expr<T> | number): ExprProxy<T>;
+export function div<T extends GlslType>(a: number, b: Expr<T>): ExprProxy<T>;
+export function div(a: any, b: any): any {
+  return binop("/", a as AnyArg, b as AnyArg, inferType(a as AnyArg, b as AnyArg));
+}
+
+// neg (unary)
+export function neg(a: number): ExprProxy<"float">;
+export function neg<T extends GlslType>(a: Expr<T>): ExprProxy<T>;
+export function neg(a: any): any {
+  const arg = a as AnyArg;
+  const type = typeof arg === "number" ? "float" : glslTypeOf(arg);
+  return makeProxy({ kind: "unary", op: "-", operand: toNode(arg) }, type);
 }

@@ -1,5 +1,5 @@
 import { refProxy, toNode, glslTypeOf, compileExpr } from "./ast.ts";
-import { vec2, vec3, vec4, mat2, sin, cos, abs, fract, sqrt, floor, mix, smoothstep, radians, dot, length } from "./builtins.ts";
+import { vec2, vec3, vec4, mat2, sin, cos, abs, fract, sqrt, floor, mix, smoothstep, radians, dot, length, add, sub, mul, div, neg } from "./builtins.ts";
 import type { AstNode, BodyStatement, ConstStatement, Expr, ExprProxy, FnDef, GlslType, ShaderContext } from "./types.ts";
 
 // ---------------------------------------------------------------------------
@@ -113,6 +113,7 @@ export type Builtins = {
   fract: typeof fract; sqrt: typeof sqrt; floor: typeof floor;
   mix: typeof mix; smoothstep: typeof smoothstep; radians: typeof radians;
   dot: typeof dot; length: typeof length;
+  add: typeof add; sub: typeof sub; mul: typeof mul; div: typeof div; neg: typeof neg;
 };
 
 export type FragmentFn = (ctx: { $: ShaderContext } & Builtins) => void;
@@ -171,7 +172,7 @@ export function compileFragment(fn: FragmentFn): string {
     get resolution(): ExprProxy<"vec2">  { return refProxy(["u_resolution"], "vec2");  },
   };
 
-  fn({ $, vec2, vec3, vec4, mat2, sin, cos, abs, fract, sqrt, floor, mix, smoothstep, radians, dot, length });
+  fn({ $, vec2, vec3, vec4, mat2, sin, cos, abs, fract, sqrt, floor, mix, smoothstep, radians, dot, length, add, sub, mul, div, neg });
 
   const fnDefs = collectFnDefs(statements, constants);
 
