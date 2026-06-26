@@ -1,17 +1,70 @@
 import { refProxy, toNode, glslTypeOf, compileExpr } from "./ast.ts";
 import { vec2, vec3, vec4, mat2, sin, cos, abs, fract, sqrt, floor, mix, smoothstep, radians, dot, length } from "./builtins.ts";
-import type { AstNode, Expr, ExprProxy, GlslType, ShaderContext } from "./types.ts";
+import type { AstNode, BodyStatement, ConstStatement, Expr, ExprProxy, FnDef, GlslType, ShaderContext } from "./types.ts";
 
 // ---------------------------------------------------------------------------
 // Statement types (internal to the compiler)
 // ---------------------------------------------------------------------------
 
-type BodyStatement =
-  | { type: "let";    name: string; varType: GlslType; value: AstNode }
-  | { type: "assign"; target: string; value: AstNode };
+// ---------------------------------------------------------------------------
+// FnDef collection + emission
+// ---------------------------------------------------------------------------
 
-type ConstStatement =
-  | { type: "const";  name: string; varType: GlslType; value: AstNode };
+// Walk the full AST of a compiled fragment and collect all FnDefs in the
+// order they must be emitted (dependencies before dependents).
+function collectFnDefs(stmts: BodyStatement[], consts: ConstStatement[]): FnDef[] {
+  const seen    = new Set<string>();
+  const ordered: FnDef[] = [];
+
+  function walkNode(node: AstNode): void {
+    switch (node.kind) {
+      case "fncall": {
+        // Walk args first so any deps they carry are registered
+        for (const arg of node.args) walkNode(arg);
+        if (!seen.has(node.def.name)) {
+          seen.add(node.def.name);
+          // Recurse into the function's own body to find nested deps
+          for (const s of node.def.body) walkNode(s.value);
+          walkNode(node.def.returnExpr);
+          ordered.push(node.def);
+        }
+        break;
+      }
+      case "call":   for (const a of node.args) walkNode(a);  break;
+      case "field":  walkNode(node.expr);                      break;
+      case "binop":  walkNode(node.left); walkNode(node.right); break;
+      case "unary":  walkNode(node.operand);                   break;
+      case "number":
+      case "ref":    break;
+    }
+  }
+
+  for (const c of consts) walkNode(c.value);
+  for (const s of stmts) {
+    walkNode(s.type === "let" ? s.value : s.value);
+  }
+
+  return ordered;
+}
+
+function compileFnDef(def: FnDef): string {
+  const paramList = Object.entries(def.params)
+    .map(([n, t]) => `${glslKeyword[t]} ${n}`)
+    .join(", ");
+
+  const bodyLines = [
+    ...def.body.map(
+      (s) => `  ${glslKeyword[s.varType]} ${s.name} = ${compileExpr(s.value)};`,
+    ),
+    `  return ${compileExpr(def.returnExpr)};`,
+  ];
+
+  return [
+    `${glslKeyword[def.returnType]} ${def.name}(${paramList}) {`,
+    ...bodyLines,
+    `}`,
+  ].join("\n");
+}
 
 // ---------------------------------------------------------------------------
 // Builtins bundle passed into the fragment function
@@ -82,12 +135,16 @@ export function compileFragment(fn: FragmentFn): string {
 
   fn({ $, vec2, vec3, vec4, mat2, sin, cos, abs, fract, sqrt, floor, mix, smoothstep, radians, dot, length });
 
+  const fnDefs = collectFnDefs(statements, constants);
+
   return [
     "precision mediump float;",
     "uniform float u_time;",
     "uniform vec2 u_resolution;",
     ...(constants.length > 0 ? [""] : []),
     ...constants.map((c) => `const ${glslKeyword[c.varType]} ${c.name} = ${compileExpr(c.value)};`),
+    ...(fnDefs.length > 0 ? [""] : []),
+    ...fnDefs.map((d) => compileFnDef(d)),
     "",
     "void main() {",
     "  vec2 uv = gl_FragCoord.xy / u_resolution.xy;",

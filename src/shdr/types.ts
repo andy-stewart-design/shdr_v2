@@ -119,6 +119,17 @@ export type ExprProxy<T extends GlslType> =
   Expr<T> & SwizzleProps<T> & (T extends "mat2" ? Mat2Methods : ArithmeticMethods<T>);
 
 // ---------------------------------------------------------------------------
+// Statement types
+// ---------------------------------------------------------------------------
+
+export type BodyStatement =
+  | { type: "let";    name: string; varType: GlslType; value: AstNode }
+  | { type: "assign"; target: string; value: AstNode };
+
+export type ConstStatement =
+  { type: "const"; name: string; varType: GlslType; value: AstNode };
+
+// ---------------------------------------------------------------------------
 // ShaderContext — the $ object exposed to the fragment function
 // ---------------------------------------------------------------------------
 
