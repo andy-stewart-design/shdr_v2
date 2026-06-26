@@ -65,7 +65,9 @@ export function makeProxy<T extends GlslType>(node: AstNode, type: T): ExprProxy
           const otherType: GlslType =
             typeof other === "number" ? "float" : glslTypeOf(other as Expr<GlslType>);
           const resultType: GlslType =
-            type === "mat2" && otherType === "vec2" ? "vec2" : type;
+            (type === "mat2" && otherType === "vec2") ||
+            (type === "vec2" && otherType === "mat2")
+              ? "vec2" : type;
           return makeProxy(
             { kind: "binop", op: "*", left: node, right: toNode(other) },
             resultType,

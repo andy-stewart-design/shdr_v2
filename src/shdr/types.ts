@@ -97,6 +97,15 @@ export type Mat2Methods = {
   neg():                             ExprProxy<"mat2">;
 };
 
+// vec2 * mat2 → vec2 (left-multiply / row-vector form)
+export type Vec2Methods = {
+  mul(other: Expr<"vec2"> | Expr<"mat2"> | number): ExprProxy<"vec2">;
+  add(other: Expr<"vec2"> | number): ExprProxy<"vec2">;
+  sub(other: Expr<"vec2"> | number): ExprProxy<"vec2">;
+  div(other: Expr<"vec2"> | number): ExprProxy<"vec2">;
+  neg():                             ExprProxy<"vec2">;
+};
+
 // ---------------------------------------------------------------------------
 // ExprProxy<T> — Expr with typed swizzle + chainable arithmetic
 // ---------------------------------------------------------------------------
@@ -116,7 +125,11 @@ export type SwizzleProps<T extends GlslType> = {
 };
 
 export type ExprProxy<T extends GlslType> =
-  Expr<T> & SwizzleProps<T> & (T extends "mat2" ? Mat2Methods : ArithmeticMethods<T>);
+  Expr<T> & SwizzleProps<T> & (
+    T extends "mat2" ? Mat2Methods :
+    T extends "vec2" ? Vec2Methods :
+    ArithmeticMethods<T>
+  );
 
 // ---------------------------------------------------------------------------
 // Statement types
@@ -150,4 +163,6 @@ export type ShaderContext = {
   readonly uv: ExprProxy<"vec2">;
   /** Elapsed time in seconds (u_time uniform). */
   readonly time: ExprProxy<"float">;
+  /** Canvas resolution in physical pixels (u_resolution uniform). */
+  readonly resolution: ExprProxy<"vec2">;
 };

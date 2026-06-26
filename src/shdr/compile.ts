@@ -138,8 +138,9 @@ export function compileFragment(fn: FragmentFn): string {
     fragColor(value: Expr<"vec4">) {
       statements.push({ type: "assign", target: "gl_FragColor", value: toNode(value) });
     },
-    get uv():   ExprProxy<"vec2">  { return refProxy(["uv"],    "vec2");  },
-    get time(): ExprProxy<"float"> { return refProxy(["u_time"], "float"); },
+    get uv():         ExprProxy<"vec2">  { return refProxy(["uv"],           "vec2");  },
+    get time():       ExprProxy<"float"> { return refProxy(["u_time"],       "float"); },
+    get resolution(): ExprProxy<"vec2">  { return refProxy(["u_resolution"], "vec2");  },
   };
 
   fn({ $, vec2, vec3, vec4, mat2, sin, cos, abs, fract, sqrt, floor, mix, smoothstep, radians, dot, length });
