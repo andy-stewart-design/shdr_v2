@@ -174,7 +174,7 @@ export type ShaderContext = {
   const<T extends GlslType>(value: ExprProxy<T>): ExprProxy<T>;
   const(value: number): ExprProxy<"float">;
   /** Write to gl_FragColor — must be vec4. */
-  fragColor(value: Expr<"vec4">): void;
+  output(value: Expr<"vec4">): void;
   /** Interpolated UV coord in [0,1]². */
   readonly uv: ExprProxy<"vec2">;
   /** Elapsed time in seconds (u_time uniform). */

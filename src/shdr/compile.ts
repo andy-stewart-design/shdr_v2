@@ -164,7 +164,7 @@ export function compileFragment(fn: FragmentFn): string {
       return refProxy<T>([name], glslTypeOf(value) as T);
     },
     const: makeConst,
-    fragColor(value: Expr<"vec4">) {
+    output(value: Expr<"vec4">) {
       statements.push({ type: "assign", target: "gl_FragColor", value: toNode(value) });
     },
     get uv():         ExprProxy<"vec2">  { return refProxy(["uv"],           "vec2");  },

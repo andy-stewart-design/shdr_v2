@@ -63,7 +63,7 @@ const fragment = compileFragment(
     const grain = filmGrain($.uv);
     const finalColor = color.sub(vec3(grain.mul(FILM_GRAIN_INTENSITY)));
 
-    $.fragColor(vec4(finalColor, 1.0));
+    $.output(vec4(finalColor, 1.0));
   },
 );
 
@@ -164,6 +164,6 @@ createShader({ canvas, fragment });
 //       color.sub(vec3(grain.mul(FILM_GRAIN_INTENSITY))),
 //     );
 
-//     $.fragColor(vec4(finalColor, 1.0));
+//     $.output(vec4(finalColor, 1.0));
 //   },
 // });
