@@ -308,15 +308,20 @@ export function length(
 // ShaderContext  — the $ object passed to createShader
 // ---------------------------------------------------------------------------
 
-type Statement =
-  | { type: "let"; name: string; varType: GlslType; value: AstNode }
+type BodyStatement =
+  | { type: "let";    name: string; varType: GlslType; value: AstNode }
   | { type: "assign"; target: string; value: AstNode };
+
+type ConstStatement = { type: "const"; name: string; varType: GlslType; value: AstNode };
 
 type ShaderContext = {
   /** Declare a named local variable. */
   let<T extends GlslType>(name: string, value: ExprProxy<T>): ExprProxy<T>;
   /** Declare an auto-named local variable (_v0, _v1, …). */
   let<T extends GlslType>(value: ExprProxy<T>): ExprProxy<T>;
+  /** Declare a top-level GLSL constant (emitted before main). */
+  const<T extends GlslType>(name: string, value: ExprProxy<T>): ExprProxy<T>;
+  const(name: string, value: number): ExprProxy<"float">;
   /** Write to gl_FragColor — must be vec4. */
   fragColor(value: Expr<"vec4">): void;
   /** Interpolated UV coord in [0,1]². */
@@ -354,7 +359,8 @@ const glslKeyword: Record<GlslType, string> = {
 export function createShader(
   fn: (ctx: { $: ShaderContext } & Builtins) => void,
 ): string {
-  const statements: Statement[] = [];
+  const constants:  ConstStatement[] = [];
+  const statements: BodyStatement[]  = [];
 
   let varCounter = 0;
   const $: ShaderContext = {
@@ -373,6 +379,13 @@ export function createShader(
         value: node,
       });
       return refProxy<T>([name], glslTypeOf(value) as T);
+    },
+    const<T extends GlslType>(name: string, value: ExprProxy<T> | number): ExprProxy<T> {
+      const isNum = typeof value === "number";
+      const node: AstNode = isNum ? { kind: "number", value } : toNode(value as ExprProxy<T>);
+      const varType: GlslType = isNum ? "float" : glslTypeOf(value as ExprProxy<T>);
+      constants.push({ type: "const", name, varType, value: node });
+      return refProxy<T>([name], varType as T);
     },
     fragColor(value: Expr<"vec4">) {
       statements.push({
@@ -407,6 +420,10 @@ export function createShader(
   const lines = [
     "precision mediump float;",
     "uniform vec2 u_resolution;",
+    ...(constants.length > 0 ? [""] : []),
+    ...constants.map(
+      (c) => `const ${glslKeyword[c.varType]} ${c.name} = ${compileExpr(c.value)};`
+    ),
     "",
     "void main() {",
     "  vec2 uv = gl_FragCoord.xy / u_resolution.xy;",
@@ -437,38 +454,25 @@ export function createShader(
 //   vec3  color      = mix(layer1, layer2, smoothstep(0.5, -0.3, tuv.y + distY));
 //   gl_FragColor     = vec4(color, 1.0);
 
-const COLOR_GREEN = [76.0 / 255.0, 225.0 / 255.0, 96.0 / 255.0] as const;
-const COLOR_BLUE = [132.0 / 255.0, 180.0 / 255.0, 251.0 / 255.0] as const;
-const COLOR_ORANGE = [255.0 / 255.0, 130.0 / 255.0, 90.0 / 255.0] as const;
-const COLOR_YELLOW = [246.0 / 255.0, 224.0 / 255.0, 22.0 / 255.0] as const;
-
 export const shader = createShader(
   ({ $, vec3, vec4, sin, mix, smoothstep }) => {
-    // Named: readable GLSL output
-    const tuv = $.let("tuv", $.uv.sub(0.5));
-    const speed = $.let("speed", tuv.x.mul(0.0).add(1.0)); // placeholder for u_time
-    const distX = $.let("distX", sin(tuv.y.mul(5.0).add(speed)).div(30.0));
-    const distY = $.let("distY", sin(tuv.x.mul(7.5).add(speed)).div(60.0));
-    const layerBlend = $.let(
-      "layerBlend",
-      smoothstep(-0.3, 0.2, tuv.x.add(distX)),
-    );
-    const layer1 = $.let(
-      "layer1",
-      mix(vec3(...COLOR_ORANGE), vec3(...COLOR_BLUE), layerBlend),
-    );
-    const layer2 = $.let(
-      "layer2",
-      mix(vec3(...COLOR_YELLOW), vec3(...COLOR_GREEN), layerBlend),
-    );
-    const color = $.let(
-      "color",
-      mix(layer1, layer2, smoothstep(0.5, -0.3, tuv.y.add(distY))),
-    );
+    // Top-level GLSL constants
+    const COLOR_GREEN  = $.const("COLOR_GREEN",  vec3(76.0  / 255.0, 225.0 / 255.0, 96.0  / 255.0));
+    const COLOR_BLUE   = $.const("COLOR_BLUE",   vec3(132.0 / 255.0, 180.0 / 255.0, 251.0 / 255.0));
+    const COLOR_ORANGE = $.const("COLOR_ORANGE", vec3(255.0 / 255.0, 130.0 / 255.0, 90.0  / 255.0));
+    const COLOR_YELLOW = $.const("COLOR_YELLOW", vec3(246.0 / 255.0, 224.0 / 255.0, 22.0  / 255.0));
+    const WAVE_FREQ    = $.const("WAVE_FREQUENCY", 5.0);
+    const WAVE_AMP     = $.const("WAVE_AMPLITUDE", 30.0);
 
-    // Auto-named: same output, generated name (_v0, _v1, …)
-    const _distX2 = $.let(sin(tuv.y.mul(5.0).add(speed)).div(30.0));
-    void _distX2;
+    // main() body
+    const tuv        = $.let("tuv",        $.uv.sub(0.5));
+    const speed      = $.let("speed",      tuv.x.mul(0.0).add(1.0)); // placeholder for u_time
+    const distX      = $.let("distX",      sin(tuv.y.mul(WAVE_FREQ).add(speed)).div(WAVE_AMP));
+    const distY      = $.let("distY",      sin(tuv.x.mul(WAVE_FREQ).add(speed)).div(WAVE_AMP));
+    const layerBlend = $.let("layerBlend", smoothstep(-0.3, 0.2, tuv.x.add(distX)));
+    const layer1     = $.let("layer1",     mix(COLOR_ORANGE, COLOR_BLUE,   layerBlend));
+    const layer2     = $.let("layer2",     mix(COLOR_YELLOW, COLOR_GREEN,  layerBlend));
+    const color      = $.let("color",      mix(layer1, layer2, smoothstep(0.5, -0.3, tuv.y.add(distY))));
 
     $.fragColor(vec4(color, 1.0));
   },
