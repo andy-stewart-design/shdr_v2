@@ -8,7 +8,7 @@ import type { ExprProxy } from "./types.ts";
 //   type position  → the ExprProxy alias TypeScript uses    e.g. ExprProxy<"float">
 //
 // Usage:
-//   const rot = defn("rot", { a: Float }, Mat2, ({ a }) => { ... });
+//   const rot = fn("rot", { a: Float }, Mat2, ({ a }) => { ... });
 //                            ↑ value          ↑ value
 //   interface RotArgs { a: Float }
 //                          ↑ type → ExprProxy<"float">

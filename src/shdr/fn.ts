@@ -12,7 +12,7 @@ import type {
 } from "./types.ts";
 
 // ---------------------------------------------------------------------------
-// LocalContext — the $ available inside a defn body
+// LocalContext — the $ available inside a fn body
 // ---------------------------------------------------------------------------
 
 export type LocalContext = {
@@ -38,9 +38,9 @@ function makeLocalContext(statements: FnBodyStatement[]): LocalContext {
 }
 
 // ---------------------------------------------------------------------------
-// defn — array form (positional args)
+// fn — array form (positional args)
 //
-//   const rot = defn("rot", [Float], Mat2, ([a], $) => mat2(cos(a), ...));
+//   const rot = fn("rot", [Float], Mat2, ([a], $) => mat2(cos(a), ...));
 //   rot(angle)  // ExprProxy<"mat2">
 //
 // GLSL param names are auto-generated (_p0, _p1, …). The Vite transform
@@ -49,7 +49,7 @@ function makeLocalContext(statements: FnBodyStatement[]): LocalContext {
 // ---------------------------------------------------------------------------
 
 // Array form — put first so TS resolves it before the object form
-export function defn<T extends readonly GlslType[], R extends GlslType>(
+export function fn<T extends readonly GlslType[], R extends GlslType>(
   name: string,
   params: readonly [...T],
   returnType: R,
@@ -57,7 +57,7 @@ export function defn<T extends readonly GlslType[], R extends GlslType>(
 ): TupleShaderFn<T, R>;
 
 // Object form
-export function defn<S extends Record<string, GlslType>, R extends GlslType>(
+export function fn<S extends Record<string, GlslType>, R extends GlslType>(
   name: string,
   params: S,
   returnType: R,
@@ -65,7 +65,7 @@ export function defn<S extends Record<string, GlslType>, R extends GlslType>(
 ): ShaderFn<S, R>;
 
 // Implementation — body typed as (...args: any[]) => ... to satisfy both overloads
-export function defn<R extends GlslType>(
+export function fn<R extends GlslType>(
   name: string,
   params: ReadonlyArray<GlslType> | Record<string, GlslType>,
   returnType: R,
@@ -101,7 +101,7 @@ export function defn<R extends GlslType>(
         !(NODE in (args[0] as object))
       ) {
         throw new Error(
-          `defn '${name}' was defined with positional params [${types.join(", ")}] ` +
+          `fn '${name}' was defined with positional params [${types.join(", ")}] ` +
           `but called with a named-args object. Use ${name}(${types.map((_, i) => `arg${i}`).join(", ")}) instead.`
         );
       }
@@ -133,7 +133,7 @@ export function defn<R extends GlslType>(
       // Without strict TS this silently passes but causes a bad swizzle in GLSL.
       if (args !== null && typeof args === "object" && NODE in (args as object)) {
         throw new Error(
-          `defn '${name}' was defined with named params { ${Object.keys(schema).join(", ")} } ` +
+          `fn '${name}' was defined with named params { ${Object.keys(schema).join(", ")} } ` +
           `but called with positional arguments. Use ${name}({ ${Object.keys(schema).map((k, i) => `${k}: arg${i}`).join(", ")} }) instead.`
         );
       }

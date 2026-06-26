@@ -38,8 +38,8 @@ export type FnDef = {
 };
 
 /**
- * Local statement types inside a defn body (subset of BodyStatement —
- * no assign, since defn functions can't write to gl_FragColor).
+ * Local statement types inside a fn body (subset of BodyStatement —
+ * no assign, since fn functions can't write to gl_FragColor).
  */
 export type FnBodyStatement = { type: "let"; name: string; varType: GlslType; value: AstNode };
 
