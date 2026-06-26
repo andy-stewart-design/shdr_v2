@@ -43,9 +43,15 @@ export function compileFragment(fn: FragmentFn): string {
   const constants:  ConstStatement[] = [];
   const statements: BodyStatement[]  = [];
 
+  let constCounter = 0;
   function makeConst(name: string, value: number): ExprProxy<"float">;
   function makeConst<T extends GlslType>(name: string, value: ExprProxy<T>): ExprProxy<T>;
-  function makeConst(name: string, value: unknown): unknown {
+  function makeConst(value: number): ExprProxy<"float">;
+  function makeConst<T extends GlslType>(value: ExprProxy<T>): ExprProxy<T>;
+  function makeConst(nameOrValue: unknown, maybeValue?: unknown): unknown {
+    const hasName = typeof nameOrValue === "string";
+    const name  = hasName ? nameOrValue as string : `_c${constCounter++}`;
+    const value = hasName ? maybeValue : nameOrValue;
     const isNum = typeof value === "number";
     const node: AstNode = isNum
       ? { kind: "number", value: value as number }
