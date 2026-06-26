@@ -13,36 +13,45 @@ import type { AstNode, BodyStatement, ConstStatement, Expr, ExprProxy, FnDef, Gl
 // Walk the full AST of a compiled fragment and collect all FnDefs in the
 // order they must be emitted (dependencies before dependents).
 function collectFnDefs(stmts: BodyStatement[], consts: ConstStatement[]): FnDef[] {
-  const seen    = new Set<string>();
+  const seen    = new Set<string>(); // fully processed
+  const stack   = new Set<string>(); // currently on the DFS path — cycle detection
   const ordered: FnDef[] = [];
 
   function walkNode(node: AstNode): void {
     switch (node.kind) {
       case "fncall": {
+        const { name } = node.def;
+
+        if (stack.has(name)) {
+          const path = [...stack, name].join(" → ");
+          throw new Error(`Circular dependency detected in shader functions: ${path}`);
+        }
+
         // Walk args first so any deps they carry are registered
         for (const arg of node.args) walkNode(arg);
-        if (!seen.has(node.def.name)) {
-          seen.add(node.def.name);
+
+        if (!seen.has(name)) {
+          seen.add(name);
+          stack.add(name);
           // Recurse into the function's own body to find nested deps
           for (const s of node.def.body) walkNode(s.value);
           walkNode(node.def.returnExpr);
+          stack.delete(name);
           ordered.push(node.def);
         }
         break;
       }
-      case "call":   for (const a of node.args) walkNode(a);  break;
-      case "field":  walkNode(node.expr);                      break;
+      case "call":   for (const a of node.args) walkNode(a);   break;
+      case "field":  walkNode(node.expr);                       break;
       case "binop":  walkNode(node.left); walkNode(node.right); break;
-      case "unary":  walkNode(node.operand);                   break;
+      case "unary":  walkNode(node.operand);                    break;
       case "number":
       case "ref":    break;
     }
   }
 
   for (const c of consts) walkNode(c.value);
-  for (const s of stmts) {
-    walkNode(s.type === "let" ? s.value : s.value);
-  }
+  for (const s of stmts)  walkNode(s.value);
 
   return ordered;
 }
