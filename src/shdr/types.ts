@@ -11,7 +11,48 @@ export type FieldNode  = { kind: "field";  expr: AstNode; field: string };
 export type BinOpNode  = { kind: "binop";  op: "+" | "-" | "*" | "/"; left: AstNode; right: AstNode };
 export type UnaryNode  = { kind: "unary";  op: "-"; operand: AstNode };
 
-export type AstNode = NumberNode | RefNode | CallNode | FieldNode | BinOpNode | UnaryNode;
+export type FnCallNode = { kind: "fncall"; def: FnDef; args: AstNode[] };
+
+export type AstNode = NumberNode | RefNode | CallNode | FieldNode | BinOpNode | UnaryNode | FnCallNode;
+
+// ---------------------------------------------------------------------------
+// User-defined function types
+// ---------------------------------------------------------------------------
+
+/** Maps a param schema object to the corresponding ExprProxy arg types. */
+export type ParamsToExprs<S extends Record<string, GlslType>> = {
+  [K in keyof S]: ExprProxy<S[K]>
+};
+
+/**
+ * A compiled GLSL function definition.
+ * Carried as metadata on every FnCallNode so the compiler can discover
+ * which functions are needed by walking the AST — no global registry.
+ */
+export type FnDef = {
+  name:       string;
+  params:     Record<string, GlslType>;
+  returnType: GlslType;
+  body:       FnBodyStatement[];  // local $.let statements inside the fn
+  returnExpr: AstNode;           // the expression after `return`
+};
+
+/**
+ * Local statement types inside a defn body (subset of BodyStatement —
+ * no assign, since defn functions can't write to gl_FragColor).
+ */
+export type FnBodyStatement = { type: "let"; name: string; varType: GlslType; value: AstNode };
+
+/**
+ * A ShaderFn is a callable that produces a typed ExprProxy when invoked,
+ * and exposes its FnDef so the compiler can harvest it from the AST.
+ *
+ * Args are passed positionally in param-schema key order.
+ * Each arg accepts the matching ExprProxy type or a bare number.
+ */
+export type ShaderFn<S extends Record<string, GlslType>, R extends GlslType> =
+  ((args: { [K in keyof S]: ExprProxy<S[K]> | number }) => ExprProxy<R>)
+  & { readonly _def: FnDef };
 
 // ---------------------------------------------------------------------------
 // GLSL type universe

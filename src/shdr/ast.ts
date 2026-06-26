@@ -36,6 +36,7 @@ export function compileExpr(node: AstNode): string {
     case "field":  return `${compileExpr(node.expr)}.${node.field}`;
     case "binop":  return `(${compileExpr(node.left)} ${node.op} ${compileExpr(node.right)})`;
     case "unary":  return `(-${compileExpr(node.operand)})`;
+    case "fncall": return `${node.def.name}(${node.args.map(compileExpr).join(", ")})`;
   }
 }
 
