@@ -46,12 +46,11 @@ const fragment = compileFragment(
     // ── Wave distortion — SSA replaces tuv.x += / tuv.y +=
     const speed = $.time.mul(WAVE_SPEED);
 
-    const tuv4x = tuv3.x.add(
-      sin(tuv3.y.mul(WAVE_FREQUENCY).add(speed)).div(WAVE_AMPLITUDE),
-    );
-    const foo = tuv3.x.mul(WAVE_FREQUENCY).mul(WAVE_Y_FREQ_SCALE).add(speed);
+    const phaseX = tuv3.y.mul(WAVE_FREQUENCY).add(speed);
+    const tuv4x = tuv3.x.add(sin(phaseX).div(WAVE_AMPLITUDE));
+    const phaseY = tuv3.x.mul(WAVE_FREQUENCY).mul(WAVE_Y_FREQ_SCALE).add(speed);
     const tuv4y = tuv3.y.add(
-      sin(foo).div(mul(WAVE_AMPLITUDE, WAVE_Y_AMPL_SCALE)),
+      sin(phaseY).div(mul(WAVE_AMPLITUDE, WAVE_Y_AMPL_SCALE)),
     );
     const tuv4 = vec2(tuv4x, tuv4y);
 
@@ -71,11 +70,7 @@ const fragment = compileFragment(
   },
 );
 
-const fragment2 = compileFragment(({ $, vec4 }) => {
-  $.fragColor(vec4($.uv.x, $.uv.y, 0, 1));
-});
-
-console.log(fragment2);
+console.log(fragment);
 
 createShader({ canvas, fragment });
 
