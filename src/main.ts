@@ -46,8 +46,8 @@ const fragment = compileFragment(
     // ── Wave distortion — SSA replaces tuv.x += / tuv.y +=
     const speed = $.time.mul(WAVE_SPEED);
     const phaseX = tuv3.y.mul(WAVE_FREQUENCY).add(speed);
-    const tuv4x = tuv3.x.add(sin(phaseX).div(WAVE_AMP));
     const phaseY = tuv3.x.mul(WAVE_FREQUENCY).mul(WAVE_Y_FREQ_SCALE).add(speed);
+    const tuv4x = tuv3.x.add(sin(phaseX).div(WAVE_AMP));
     const tuv4y = tuv3.y.add(sin(phaseY).div(mul(WAVE_AMP, WAVE_Y_AMP_SCALE)));
     const tuv4 = vec2(tuv4x, tuv4y);
 
