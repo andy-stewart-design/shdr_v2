@@ -1,6 +1,8 @@
 import "./style.css";
-import { createShader } from "./shdr/index.ts";
+import { createShader, compileFragment } from "./shdr/index.ts";
 import { fragment } from "./fragments/palette.ts";
+
+console.log(compileFragment(fragment));
 
 const canvas = document.querySelector<HTMLCanvasElement>("#canvas")!;
 
