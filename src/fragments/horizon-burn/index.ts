@@ -20,14 +20,11 @@ export const fragment: FragmentFn = ({ $, vec2, vec3, vec4, sin, mix }) => {
   const uv2 = $.let("uv2", uv1.sub(0.03));
   const grain = $.let("grain", rand(uv2.mul(100.0)));
 
-  const waveX = $.let(
-    "waveX",
-    sin(uv2.x.mul(6.0).add(sin($.time.add(uv2.y.mul(6.0))).mul(0.2))),
-  );
-  const waveY = $.let(
-    "waveY",
-    sin(uv2.y.mul(6.0).add(sin($.time.add(uv2.x.mul(6.0))).mul(0.2))),
-  );
+  const sX = uv2.x.mul(6.0);
+  const sY = uv2.y.mul(6.0);
+
+  const waveX = $.let("waveX", sin(sX.add(sin($.time.add(sY)).mul(0.2))));
+  const waveY = $.let("waveY", sin(sY.add(sin($.time.add(sX)).mul(0.2))));
   const uv3 = $.let("uv3", uv2.add(vec2(waveX, waveY)));
 
   const palInput = $.let("palInput", uv3.x.mul(sin(1.0)).add(uv3.y));
