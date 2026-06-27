@@ -1,5 +1,5 @@
-import { rot, noise, filmGrain } from "../shader-utils.ts";
-import type { FragmentFn } from "../shdr/index.ts";
+import { rot, noise, filmGrain } from "./utils.ts";
+import type { FragmentFn } from "../../shdr/index.ts";
 
 export const fragment: FragmentFn = ({
   $,
