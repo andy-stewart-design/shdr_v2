@@ -41,26 +41,26 @@ export const fragment: FragmentFn = ({
   const WAVE_Y_AMPL_SCALE = $.const("WAVE_Y_AMPL_SCALE", 0.5);
 
   // ── Aspect-correct UV
-  const aspectRatio = $.let("aspectRatio", $.resolution.x.div($.resolution.y));
-  const tuv0 = $.let("tuv", $.uv.sub(0.5));
+  let aspectRatio = $.let("aspectRatio", $.resolution.x.div($.resolution.y));
+  let tuv0 = $.let("tuv", $.uv.sub(0.5));
 
   // ── Global rotation driven by noise
-  const degree = $.let(
+  let degree = $.let(
     "degree",
     noise(vec2($.time.mul(ROTATION_NOISE_SPEED), tuv0.x.mul(tuv0.y))),
   );
-  const angle = radians(
+  var angle = radians(
     degree.sub(0.5).mul(ROTATION_SPREAD_DEG).add(ROTATION_OFFSET_DEG),
   );
 
   // Correct for aspect ratio, rotate, restore — SSA replaces tuv.y *= / tuv *= / tuv.y *=
-  const tuv1 = $.let("tuv1", vec2(tuv0.x, tuv0.y.div(aspectRatio)));
-  const tuv2 = $.let("tuv2", rot(angle).mul(tuv1));
-  const tuv3 = $.let("tuv3", vec2(tuv2.x, tuv2.y.mul(aspectRatio)));
+  let tuv1 = $.let("tuv1", vec2(tuv0.x, tuv0.y.div(aspectRatio)));
+  let tuv2 = $.let("tuv2", rot(angle).mul(tuv1));
+  let tuv3 = $.let("tuv3", vec2(tuv2.x, tuv2.y.mul(aspectRatio)));
 
   // ── Wave distortion — SSA replaces tuv.x += / tuv.y +=
-  const speed = $.let("speed", $.time.mul(WAVE_SPEED));
-  const tuv4 = $.let(
+  let speed = $.let("speed", $.time.mul(WAVE_SPEED));
+  let tuv4 = $.let(
     "tuv4",
     vec2(
       tuv3.x.add(
@@ -75,21 +75,21 @@ export const fragment: FragmentFn = ({
   );
 
   // ── Layer blending with a shared slight rotation
-  const layerRot = $.let("layerRot", rot(radians(LAYER_ROTATION_DEG)));
-  const layerBlend = $.let(
+  let layerRot = $.let("layerRot", rot(radians(LAYER_ROTATION_DEG)));
+  let layerBlend = $.let(
     "layerBlend",
     smoothstep(-0.3, 0.2, tuv4.mul(layerRot).x),
   );
-  const layer1 = $.let("layer1", mix(COLOR_ORANGE, COLOR_BLUE, layerBlend));
-  const layer2 = $.let("layer2", mix(COLOR_YELLOW, COLOR_GREEN, layerBlend));
-  const color = $.let(
+  let layer1 = $.let("layer1", mix(COLOR_ORANGE, COLOR_BLUE, layerBlend));
+  let layer2 = $.let("layer2", mix(COLOR_YELLOW, COLOR_GREEN, layerBlend));
+  let color = $.let(
     "color",
     mix(layer1, layer2, smoothstep(0.5, -0.3, tuv4.y)),
   );
 
   // ── Film grain — static (no u_time), baked into the gradient
-  const grain = $.let("grain", filmGrain($.uv));
-  const finalColor = $.let(
+  let grain = $.let("grain", filmGrain($.uv));
+  let finalColor = $.let(
     "finalColor",
     color.sub(vec3(grain.mul(FILM_GRAIN_INTENSITY))),
   );

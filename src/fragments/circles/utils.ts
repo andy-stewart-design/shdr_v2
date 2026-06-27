@@ -11,6 +11,7 @@ const hue = fn("hue", [Vec3], Vec3, ([c], ctx) => {
   let ss = $.let("ss", smoothstep(2.0, 1.0, abs(wrapped.sub(3.0))));
   let inner = $.let("inner", ss.mul(c.y));
   let factor = $.let("factor", inner.neg().add(1.0));
+
   return factor.mul(c.z);
 });
 
@@ -20,8 +21,9 @@ const circle = fn("circle", circArgs, Float, (args, ctx) => {
   const [xy, c, r, fill, resY] = args;
   const { mix, abs, smoothstep, length, div, sub } = ctx;
 
-  const dist = length(xy.sub(c)).sub(r);
-  const edgeDist = mix(abs(dist), dist, fill);
+  let dist = length(xy.sub(c)).sub(r);
+  let edgeDist = mix(abs(dist), dist, fill);
+
   return sub(1.0, smoothstep(div(-2.0, resY), div(3.0, resY), edgeDist));
 });
 
@@ -58,6 +60,7 @@ export const circles = fn(
       add(vec2(cos(angle), sin(angle)).mul(R.add(r)), C),
     );
     let hsl = vec3(i.div(n), 1.0, 0.75);
+
     return vec3(circle(xy, cPos, r, 1.0, resY)).mul(hue(hsl));
   },
 );
