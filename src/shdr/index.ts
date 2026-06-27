@@ -11,6 +11,7 @@ export type { Float as FloatT, Vec2 as Vec2T, Vec3 as Vec3T, Vec4 as Vec4T, Mat2
 
 // User-defined functions
 export { fn } from "./fn.ts";
+export type { FnContext } from "./fn.ts";
 
 // Builtins re-exported for direct use with compileFragment
 export { vec2, vec3, vec4, mat2,

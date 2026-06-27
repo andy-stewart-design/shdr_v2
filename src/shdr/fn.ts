@@ -1,5 +1,11 @@
 import { NODE, makeProxy, refProxy, toNode, glslTypeOf } from "./ast.ts";
 import { compileFn } from "./compile.ts";
+import {
+  vec2, vec3, vec4, mat2,
+  sin, cos, asin, acos, atan, abs, sqrt, floor, ceil, sign, fract, mod, pow, exp, exp2, log, log2, normalize,
+  mix, smoothstep, step, clamp, dot, length, cross, reflect, radians,
+  min, max, add, sub, mul, div, neg,
+} from "./builtins.ts";
 import type {
   AstNode,
   ExprProxy,
@@ -13,15 +19,33 @@ import type {
 } from "./types.ts";
 
 // ---------------------------------------------------------------------------
-// LocalContext — the $ available inside a fn body
+// FnContext — the second arg passed to every fn body
 // ---------------------------------------------------------------------------
 
+// The local statement builder available as $.let inside fn bodies
 export type LocalContext = {
   /** Declare a named local variable inside the function body. */
   let<T extends GlslType>(name: string, value: ExprProxy<T>): ExprProxy<T>;
   /** Declare an auto-named local variable (_l0, _l1, …). */
   let<T extends GlslType>(value: ExprProxy<T>): ExprProxy<T>;
 };
+
+// Bundled builtins — same set available in compileFragment callbacks
+const fnBuiltins = {
+  vec2, vec3, vec4, mat2,
+  sin, cos, asin, acos, atan, abs, sqrt, floor, ceil, sign, fract, mod, pow, exp, exp2, log, log2, normalize,
+  mix, smoothstep, step, clamp, dot, length, cross, reflect, radians,
+  min, max, add, sub, mul, div, neg,
+};
+
+/** The context object passed as the second argument to fn body callbacks.
+ *  Mirrors the compileFragment callback context: destructure what you need.
+ *  @example
+ *  const rot = fn("rot", [Float], Mat2, ([a], { sin, cos, mat2 }) => {
+ *    return mat2(cos(a), sin(a).neg(), sin(a), cos(a));
+ *  });
+ */
+export type FnContext = { $: LocalContext } & typeof fnBuiltins;
 
 function makeLocalContext(statements: FnBodyStatement[]): LocalContext {
   let counter = 0;
@@ -54,7 +78,7 @@ export function fn<T extends readonly GlslType[], R extends GlslType>(
   name: string,
   params: readonly [...T],
   returnType: R,
-  body: (args: TupleToExprs<T>, $: LocalContext) => ExprProxy<R>,
+  body: (args: TupleToExprs<T>, ctx: FnContext) => ExprProxy<R>,
 ): TupleShaderFn<T, R>;
 
 // Object form
@@ -62,7 +86,7 @@ export function fn<S extends Record<string, GlslType>, R extends GlslType>(
   name: string,
   params: S,
   returnType: R,
-  body: (args: ParamsToExprs<S>, $: LocalContext) => ExprProxy<R>,
+  body: (args: ParamsToExprs<S>, ctx: FnContext) => ExprProxy<R>,
 ): ShaderFn<S, R>;
 
 // Implementation — body typed as (...args: any[]) => ... to satisfy both overloads
@@ -85,7 +109,7 @@ export function fn<R extends GlslType>(
     );
     const paramRefs = types.map((t, i) => refProxy([`_p${i}`], t));
 
-    const returnValue = body(paramRefs, local$);
+    const returnValue = body(paramRefs, { $: local$, ...fnBuiltins });
 
     const def: FnDef = {
       name, params: paramSchema, returnType,
@@ -122,7 +146,7 @@ export function fn<R extends GlslType>(
       Object.entries(schema).map(([key, type]) => [key, refProxy([key], type)]),
     );
 
-    const returnValue = body(paramRefs, local$);
+    const returnValue = body(paramRefs, { $: local$, ...fnBuiltins });
 
     const def: FnDef = {
       name, params: schema, returnType,
