@@ -5,8 +5,11 @@
 The DSL currently requires explicit names to produce readable GLSL output:
 
 ```ts
-const tuv   = $.let("tuv",   $.uv.sub(0.5));
-const distX = $.let("distX", sin(tuv.y.mul(WAVE_FREQ).add(speed)).div(WAVE_AMP));
+const tuv = $.let("tuv", $.uv.sub(0.5));
+const distX = $.let(
+  "distX",
+  sin(tuv.y.mul(WAVE_FREQ).add(speed)).div(WAVE_AMP),
+);
 ```
 
 Without `$.let`, variables are inlined and the output becomes a single unreadable expression. The name `"tuv"` has to be written twice — once for JS, once for GLSL — which is redundant and noisy.
@@ -14,7 +17,7 @@ Without `$.let`, variables are inlined and the output becomes a single unreadabl
 The ideal is that this simpler form:
 
 ```ts
-const tuv   = $.uv.sub(0.5);
+const tuv = $.uv.sub(0.5);
 const distX = sin(tuv.y.mul(WAVE_FREQ).add(speed)).div(WAVE_AMP);
 ```
 
@@ -38,9 +41,9 @@ const tuv = $.let("tuv", $.uv.sub(0.5));
 
 ### Naming heuristic
 
-| JS variable name | Emitted as | GLSL output |
-|---|---|---|
-| `camelCase` | `$.let("name", expr)` | `float/vec* name = ...;` inside `main()` |
+| JS variable name       | Emitted as              | GLSL output                                   |
+| ---------------------- | ----------------------- | --------------------------------------------- |
+| `camelCase`            | `$.let("name", expr)`   | `float/vec* name = ...;` inside `main()`      |
 | `SCREAMING_SNAKE_CASE` | `$.const("NAME", expr)` | `const float/vec* NAME = ...;` above `main()` |
 
 This mirrors the convention already used in the DSL by hand.
@@ -68,7 +71,8 @@ export function shdrPlugin(): Plugin {
     name: "vite-plugin-shdr",
     transform(code, id) {
       if (!id.endsWith(".ts") && !id.endsWith(".js")) return;
-      if (!code.includes("compileFragment") && !code.includes("createShader")) return;
+      if (!code.includes("compileFragment") && !code.includes("createShader"))
+        return;
       return transformShdrSource(code, id);
     },
   };
@@ -90,6 +94,7 @@ const ast = parse(code, { ecmaVersion: 2022, sourceType: "module" });
 ### 3. Finding the callback
 
 Walk the AST for `CallExpression` nodes matching:
+
 - `compileFragment(fn)` — direct call
 - `createShader({ fragment: fn })` — object shorthand or property
 

@@ -16,13 +16,17 @@ export const rot = defn("rot", { a: Float }, Mat2, ({ a }) => {
 // main.ts
 import { rot } from "./rot.ts";
 
-createShader({ canvas, fragment: ({ $, radians }) => {
-  const angle = $.let("angle", radians($.time.mul(45.0)));
-  const r     = $.let("r",     rot(angle));  // ExprProxy<"mat2">
-}});
+createShader({
+  canvas,
+  fragment: ({ $, radians }) => {
+    const angle = $.let("angle", radians($.time.mul(45.0)));
+    const r = $.let("r", rot(angle)); // ExprProxy<"mat2">
+  },
+});
 ```
 
 Emitted GLSL:
+
 ```glsl
 mat2 rot(float a) {
   return mat2(cos(a), sin(a), (-sin(a)), cos(a));
@@ -43,31 +47,38 @@ void main() {
 No runtime behaviour changes yet.
 
 **Dual-namespace constants** (value + type in the same name):
+
 ```ts
-export const Float = "float" as const;  export type Float = ExprProxy<"float">;
-export const Vec2  = "vec2"  as const;  export type Vec2  = ExprProxy<"vec2">;
-export const Vec3  = "vec3"  as const;  export type Vec3  = ExprProxy<"vec3">;
-export const Vec4  = "vec4"  as const;  export type Vec4  = ExprProxy<"vec4">;
-export const Mat2  = "mat2"  as const;  export type Mat2  = ExprProxy<"mat2">;
+export const Float = "float" as const;
+export type Float = ExprProxy<"float">;
+export const Vec2 = "vec2" as const;
+export type Vec2 = ExprProxy<"vec2">;
+export const Vec3 = "vec3" as const;
+export type Vec3 = ExprProxy<"vec3">;
+export const Vec4 = "vec4" as const;
+export type Vec4 = ExprProxy<"vec4">;
+export const Mat2 = "mat2" as const;
+export type Mat2 = ExprProxy<"mat2">;
 ```
 
 In value position (`{ a: Float }`) these are the GLSL type strings the runtime needs.
 In type position (`interface Args { a: Float }`) they resolve to the correct `ExprProxy<T>`.
 
 **New types in `types.ts`:**
+
 ```ts
 // Maps a runtime param schema to typed ExprProxy args for the body callback
 type ParamsToExprs<S extends Record<string, GlslType>> = {
-  [K in keyof S]: ExprProxy<S[K]>
+  [K in keyof S]: ExprProxy<S[K]>;
 };
 
 // Compiled function definition — carried as metadata on FnCallNode
 type FnDef = {
-  name:       string;
-  params:     Record<string, GlslType>;
+  name: string;
+  params: Record<string, GlslType>;
   returnType: GlslType;
-  body:       BodyStatement[];   // local $.let statements inside the function
-  returnExpr: AstNode;          // the expression after `return`
+  body: BodyStatement[]; // local $.let statements inside the function
+  returnExpr: AstNode; // the expression after `return`
 };
 
 // A ShaderFn is a callable that produces a FnCallNode when invoked,
@@ -79,6 +90,7 @@ type ShaderFn<S extends Record<string, GlslType>, R extends GlslType> = {
 ```
 
 **New AST node in `ast.ts`:**
+
 ```ts
 type FnCallNode = { kind: "fncall"; def: FnDef; args: AstNode[] };
 ```
@@ -100,10 +112,11 @@ export function defn<S extends Record<string, GlslType>, R extends GlslType>(
   params: S,
   returnType: R,
   body: (args: ParamsToExprs<S>) => ExprProxy<R>,
-): ShaderFn<S, R>
+): ShaderFn<S, R>;
 ```
 
 Internally:
+
 1. Build typed `ExprProxy` param refs from `params` (e.g. `{ a: refProxy(["a"], "float") }`)
 2. Run a mini compilation pass — same `$.let` machinery as `compileFragment` but scoped
    to a local statement list
@@ -123,6 +136,7 @@ mat2 rot(float a) {
 ```
 
 `compileExpr` gets a `fncall` case:
+
 ```ts
 case "fncall": return `${node.def.name}(${node.args.map(compileExpr).join(", ")})`;
 ```
@@ -147,6 +161,7 @@ const noise = defn("noise", { p: Vec2 }, Float, ({ p, $ }) => {
 ```
 
 Expected output order:
+
 ```glsl
 vec2 hash(vec2 p) { ... }
 float noise(vec2 p) { ... }   // after hash
@@ -171,11 +186,11 @@ error (`Circular dependency detected: noise → hash → noise`).
 
 ## Files touched
 
-| File | Change |
-|---|---|
-| `src/shdr/types.ts` | `FnDef`, `ShaderFn`, `ParamsToExprs`, `FnCallNode` |
-| `src/shdr/ast.ts` | `FnCallNode` in `AstNode` union, `compileExpr` case |
-| `src/shdr/defn.ts` | New file — `defn` function |
-| `src/shdr/compile.ts` | Harvest + emit `FnDef`s; topological sort |
-| `src/shdr/glsl-types.ts` | New file — dual-namespace `Float`, `Vec2`, etc. |
-| `src/shdr/index.ts` | Re-export `defn`, `Float`, `Vec2`, `Vec3`, `Vec4`, `Mat2` |
+| File                     | Change                                                    |
+| ------------------------ | --------------------------------------------------------- |
+| `src/shdr/types.ts`      | `FnDef`, `ShaderFn`, `ParamsToExprs`, `FnCallNode`        |
+| `src/shdr/ast.ts`        | `FnCallNode` in `AstNode` union, `compileExpr` case       |
+| `src/shdr/defn.ts`       | New file — `defn` function                                |
+| `src/shdr/compile.ts`    | Harvest + emit `FnDef`s; topological sort                 |
+| `src/shdr/glsl-types.ts` | New file — dual-namespace `Float`, `Vec2`, etc.           |
+| `src/shdr/index.ts`      | Re-export `defn`, `Float`, `Vec2`, `Vec3`, `Vec4`, `Mat2` |

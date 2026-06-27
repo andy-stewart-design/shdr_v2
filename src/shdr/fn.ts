@@ -1,10 +1,44 @@
 import { NODE, makeProxy, refProxy, toNode, glslTypeOf } from "./ast.ts";
 import { compileFn } from "./compile.ts";
 import {
-  vec2, vec3, vec4, mat2,
-  sin, cos, asin, acos, atan, abs, sqrt, floor, ceil, sign, fract, mod, pow, exp, exp2, log, log2, normalize,
-  mix, smoothstep, step, clamp, dot, length, cross, reflect, radians,
-  min, max, add, sub, mul, div, neg,
+  vec2,
+  vec3,
+  vec4,
+  mat2,
+  sin,
+  cos,
+  asin,
+  acos,
+  atan,
+  abs,
+  sqrt,
+  floor,
+  ceil,
+  sign,
+  fract,
+  mod,
+  pow,
+  exp,
+  exp2,
+  log,
+  log2,
+  normalize,
+  mix,
+  smoothstep,
+  step,
+  clamp,
+  dot,
+  length,
+  cross,
+  reflect,
+  radians,
+  min,
+  max,
+  add,
+  sub,
+  mul,
+  div,
+  neg,
 } from "./builtins.ts";
 import type {
   AstNode,
@@ -32,10 +66,44 @@ export type LocalContext = {
 
 // Bundled builtins — same set available in compileFragment callbacks
 const fnBuiltins = {
-  vec2, vec3, vec4, mat2,
-  sin, cos, asin, acos, atan, abs, sqrt, floor, ceil, sign, fract, mod, pow, exp, exp2, log, log2, normalize,
-  mix, smoothstep, step, clamp, dot, length, cross, reflect, radians,
-  min, max, add, sub, mul, div, neg,
+  vec2,
+  vec3,
+  vec4,
+  mat2,
+  sin,
+  cos,
+  asin,
+  acos,
+  atan,
+  abs,
+  sqrt,
+  floor,
+  ceil,
+  sign,
+  fract,
+  mod,
+  pow,
+  exp,
+  exp2,
+  log,
+  log2,
+  normalize,
+  mix,
+  smoothstep,
+  step,
+  clamp,
+  dot,
+  length,
+  cross,
+  reflect,
+  radians,
+  min,
+  max,
+  add,
+  sub,
+  mul,
+  div,
+  neg,
 };
 
 /** The context object passed as the second argument to fn body callbacks.
@@ -54,9 +122,15 @@ function makeLocalContext(statements: FnBodyStatement[]): LocalContext {
       nameOrValue: string | ExprProxy<T>,
       maybeValue?: ExprProxy<T>,
     ): ExprProxy<T> {
-      const name  = typeof nameOrValue === "string" ? nameOrValue : `_l${counter++}`;
+      const name =
+        typeof nameOrValue === "string" ? nameOrValue : `_l${counter++}`;
       const value = typeof nameOrValue === "string" ? maybeValue! : nameOrValue;
-      statements.push({ type: "let", name, varType: glslTypeOf(value), value: toNode(value) });
+      statements.push({
+        type: "let",
+        name,
+        varType: glslTypeOf(value),
+        value: toNode(value),
+      });
       return refProxy<T>([name], glslTypeOf(value) as T);
     },
   };
@@ -112,8 +186,11 @@ export function fn<R extends GlslType>(
     const returnValue = body(paramRefs, { $: local$, ...fnBuiltins });
 
     const def: FnDef = {
-      name, params: paramSchema, returnType,
-      body: statements, returnExpr: toNode(returnValue),
+      name,
+      params: paramSchema,
+      returnType,
+      body: statements,
+      returnExpr: toNode(returnValue),
     };
 
     const fn = ((...args: (ExprProxy<GlslType> | number)[]) => {
@@ -127,17 +204,19 @@ export function fn<R extends GlslType>(
       ) {
         throw new Error(
           `fn '${name}' was defined with positional params [${types.join(", ")}] ` +
-          `but called with a named-args object. Use ${name}(${types.map((_, i) => `arg${i}`).join(", ")}) instead.`
+            `but called with a named-args object. Use ${name}(${types.map((_, i) => `arg${i}`).join(", ")}) instead.`,
         );
       }
-      const argNodes: AstNode[] = args.map(a => toNode(a));
+      const argNodes: AstNode[] = args.map((a) => toNode(a));
       return makeProxy({ kind: "fncall", def, args: argNodes }, returnType);
     }) as unknown as TupleShaderFn<readonly GlslType[], GlslType>;
 
-    Object.defineProperty(fn, "_def",  { value: def, writable: false });
-    Object.defineProperty(fn, "glsl",  { get: () => compileFn(fn as { _def: typeof def }), enumerable: true });
+    Object.defineProperty(fn, "_def", { value: def, writable: false });
+    Object.defineProperty(fn, "glsl", {
+      get: () => compileFn(fn as { _def: typeof def }),
+      enumerable: true,
+    });
     return fn;
-
   } else {
     // ── Object form ─────────────────────────────────────────────────────────
     const schema = params as Record<string, GlslType>;
@@ -149,28 +228,42 @@ export function fn<R extends GlslType>(
     const returnValue = body(paramRefs, { $: local$, ...fnBuiltins });
 
     const def: FnDef = {
-      name, params: schema, returnType,
-      body: statements, returnExpr: toNode(returnValue),
+      name,
+      params: schema,
+      returnType,
+      body: statements,
+      returnExpr: toNode(returnValue),
     };
 
     const fn = ((args: Record<string, ExprProxy<GlslType> | number>) => {
       // Guard: if args is an ExprProxy (has NODE symbol), the caller used
       // positional syntax rot(angle) instead of named rot({ a: angle }).
       // Without strict TS this silently passes but causes a bad swizzle in GLSL.
-      if (args !== null && typeof args === "object" && NODE in (args as object)) {
+      if (
+        args !== null &&
+        typeof args === "object" &&
+        NODE in (args as object)
+      ) {
         throw new Error(
           `fn '${name}' was defined with named params { ${Object.keys(schema).join(", ")} } ` +
-          `but called with positional arguments. Use ${name}({ ${Object.keys(schema).map((k, i) => `${k}: arg${i}`).join(", ")} }) instead.`
+            `but called with positional arguments. Use ${name}({ ${Object.keys(
+              schema,
+            )
+              .map((k, i) => `${k}: arg${i}`)
+              .join(", ")} }) instead.`,
         );
       }
-      const argNodes: AstNode[] = Object.keys(schema).map(
-        k => toNode(args[k]),
+      const argNodes: AstNode[] = Object.keys(schema).map((k) =>
+        toNode(args[k]),
       );
       return makeProxy({ kind: "fncall", def, args: argNodes }, returnType);
     }) as unknown as ShaderFn<Record<string, GlslType>, GlslType>;
 
-    Object.defineProperty(fn, "_def",  { value: def, writable: false });
-    Object.defineProperty(fn, "glsl",  { get: () => compileFn(fn as { _def: typeof def }), enumerable: true });
+    Object.defineProperty(fn, "_def", { value: def, writable: false });
+    Object.defineProperty(fn, "glsl", {
+      get: () => compileFn(fn as { _def: typeof def }),
+      enumerable: true,
+    });
     return fn;
   }
 }

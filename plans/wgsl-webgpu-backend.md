@@ -19,8 +19,8 @@ const fragment = ({ $, vec4, sin, mix, smoothstep, radians }) => {
 const glsl = compileFragment(fragment, { target: "glsl" }); // today
 const wgsl = compileFragment(fragment, { target: "wgsl" }); // future
 
-createShader({ canvas, fragment });           // WebGL
-createShaderGPU({ canvas, fragment });        // WebGPU
+createShader({ canvas, fragment }); // WebGL
+createShaderGPU({ canvas, fragment }); // WebGPU
 ```
 
 ## Why the architecture already supports this
@@ -44,12 +44,12 @@ DSL (fn, $.let, $.const, builtins)
 
 Most expression-level GLSL maps directly to WGSL:
 
-| Construct | GLSL | WGSL |
-|---|---|---|
-| `BinOpNode` | `(a + b)` | `(a + b)` |
-| `CallNode` | `sin(x)` | `sin(x)` |
-| `FieldNode` | `v.x` | `v.x` |
-| `UnaryNode` | `(-x)` | `(-(x))` |
+| Construct     | GLSL                                                                            | WGSL            |
+| ------------- | ------------------------------------------------------------------------------- | --------------- |
+| `BinOpNode`   | `(a + b)`                                                                       | `(a + b)`       |
+| `CallNode`    | `sin(x)`                                                                        | `sin(x)`        |
+| `FieldNode`   | `v.x`                                                                           | `v.x`           |
+| `UnaryNode`   | `(-x)`                                                                          | `(-(x))`        |
 | Most builtins | `sin`, `cos`, `mix`, `fract`, `floor`, `smoothstep`, `dot`, `length`, `radians` | identical names |
 
 ## What differs
@@ -58,13 +58,13 @@ Most expression-level GLSL maps directly to WGSL:
 
 WGSL uses concrete type names:
 
-| DSL `GlslType` | GLSL | WGSL |
-|---|---|---|
-| `"float"` | `float` | `f32` |
-| `"vec2"` | `vec2` | `vec2f` |
-| `"vec3"` | `vec3` | `vec3f` |
-| `"vec4"` | `vec4` | `vec4f` |
-| `"mat2"` | `mat2` | `mat2x2f` |
+| DSL `GlslType` | GLSL    | WGSL      |
+| -------------- | ------- | --------- |
+| `"float"`      | `float` | `f32`     |
+| `"vec2"`       | `vec2`  | `vec2f`   |
+| `"vec3"`       | `vec3`  | `vec3f`   |
+| `"vec4"`       | `vec4`  | `vec4f`   |
+| `"mat2"`       | `mat2`  | `mat2x2f` |
 
 This is a one-line change to the keyword map — from `glslKeyword` to `wgslKeyword`.
 
@@ -75,6 +75,7 @@ GLSL emits typed declarations; WGSL uses `let`:
 ```glsl
 float speed = (u_time * 2.0);   // GLSL
 ```
+
 ```wgsl
 let speed = (uniforms.time * 2.0);  // WGSL
 ```
@@ -87,6 +88,7 @@ WGSL emitter.
 ```glsl
 mat2 rot(float _p0) { return mat2(...); }   // GLSL
 ```
+
 ```wgsl
 fn rot(_p0: f32) -> mat2x2f { return mat2x2f(...); }  // WGSL
 ```
@@ -116,6 +118,7 @@ void main() {
   gl_FragColor = vec4(color, 1.0);
 }
 ```
+
 ```wgsl
 // WGSL
 @fragment
@@ -133,6 +136,7 @@ the DSL method name no longer implies a specific target's output mechanism.
 ### `fract` → `fract` (no change), but `mix` → `mix` (no change)
 
 Most built-in names are the same. Exceptions to check at implementation time:
+
 - `mod` (GLSL) → `%` operator or `fract(a/b)*b` in WGSL
 - `dFdx`/`dFdy` (GLSL) → `dpdx`/`dpdy` (WGSL) — not currently in the DSL
 
@@ -141,6 +145,7 @@ Most built-in names are the same. Exceptions to check at implementation time:
 ### Phase 1 — WGSL compiler
 
 New file `src/shdr/compile-wgsl.ts` implementing:
+
 - `wgslKeyword: Record<GlslType, string>`
 - `compileExprWGSL(node: AstNode): string` — mostly identical to `compileExpr`, minor syntax diffs
 - `compileFnDefWGSL(def: FnDef): string` — `fn name(p: type) -> returnType { ... }`
@@ -153,6 +158,7 @@ compatibility.
 ### Phase 2 — WebGPU runtime
 
 New file `src/shdr/runtime-webgpu.ts` implementing `createShaderGPU`:
+
 - Request `GPUAdapter` / `GPUDevice`
 - Compile vertex + fragment shader modules via `device.createShaderModule`
 - Create a `GPURenderPipeline` (vertex: full-screen triangle, fragment: user shader)
@@ -187,13 +193,13 @@ createShader({
 
 ## Files touched
 
-| File | Change |
-|---|---|
-| `src/shdr/compile-wgsl.ts` | New — WGSL compiler |
-| `src/shdr/runtime-webgpu.ts` | New — WebGPU runtime |
-| `src/shdr/compile.ts` | Add `target` option, delegate to WGSL compiler |
-| `src/shdr/index.ts` | Re-export `createShaderGPU`, `compileFragmentWGSL` |
-| `src/shdr/types.ts` | No changes needed |
-| `src/shdr/ast.ts` | No changes needed |
-| `src/shdr/builtins.ts` | No changes needed |
-| `src/shdr/fn.ts` | No changes needed |
+| File                         | Change                                             |
+| ---------------------------- | -------------------------------------------------- |
+| `src/shdr/compile-wgsl.ts`   | New — WGSL compiler                                |
+| `src/shdr/runtime-webgpu.ts` | New — WebGPU runtime                               |
+| `src/shdr/compile.ts`        | Add `target` option, delegate to WGSL compiler     |
+| `src/shdr/index.ts`          | Re-export `createShaderGPU`, `compileFragmentWGSL` |
+| `src/shdr/types.ts`          | No changes needed                                  |
+| `src/shdr/ast.ts`            | No changes needed                                  |
+| `src/shdr/builtins.ts`       | No changes needed                                  |
+| `src/shdr/fn.ts`             | No changes needed                                  |
