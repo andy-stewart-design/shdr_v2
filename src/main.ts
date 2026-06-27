@@ -1,6 +1,6 @@
 import "./style.css";
 import { createShader, compileFragment } from "./shdr/index.ts";
-import { fragment } from "./fragments/palette.ts";
+import { fragment } from "./fragments/circles.ts";
 
 console.log(compileFragment(fragment));
 

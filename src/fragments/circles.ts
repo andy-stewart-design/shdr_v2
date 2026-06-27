@@ -41,7 +41,7 @@ const circles = fn("circles", [Vec2, Vec2, Float, Float, Float, Float], Vec3, ([
 
 // ── Fragment ──────────────────────────────────────────────────────────────────
 
-export const fragment: FragmentFn = ({ $, vec2, vec4, step, length }) => {
+export const fragment: FragmentFn = ({ $, vec2, vec4, step, length, floor }) => {
   const CENTRAL_RADIUS   = $.const("CENTRAL_RADIUS",   0.1);
   const SATELLITE_RADIUS = $.const("SATELLITE_RADIUS", 0.0375);
   const ROTATION_SPEED   = $.const("ROTATION_SPEED",   0.15);
@@ -50,7 +50,7 @@ export const fragment: FragmentFn = ({ $, vec2, vec4, step, length }) => {
   const xy             = $.let("xy",             $.fragCoord.mul(2.0).sub($.resolution).div($.resolution.y));
   const C              = $.let("C",              vec2(0.0));
   const distFromCenter = $.let("distFromCenter", length(xy.sub(C)));
-  const i              = $.let("i",              $.let(distFromCenter.sub(CENTRAL_RADIUS).div(SATELLITE_RADIUS.mul(LAYER_SPACING))));
+  const i              = $.let("i",              floor(distFromCenter.sub(CENTRAL_RADIUS).div(SATELLITE_RADIUS.mul(LAYER_SPACING))));
   const phaseOffset    = $.let("phaseOffset",    $.time.mul(ROTATION_SPEED).mul(i.mul(0.1).add(1.0)).neg());
 
   const col = $.let("col", circles(
