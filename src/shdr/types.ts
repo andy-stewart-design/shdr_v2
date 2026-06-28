@@ -221,6 +221,8 @@ export type ShaderContext = {
   readonly time: ExprProxy<"float">;
   /** Canvas resolution in physical pixels (u_resolution uniform). */
   readonly resolution: ExprProxy<"vec2">;
+  /** Mouse position in physical pixel coordinates (u_mouse uniform). Defaults to vec2(0) before movement. */
+  readonly mouse: ExprProxy<"vec2">;
   /** Raw fragment pixel coordinates — gl_FragCoord.xy. Ranges from (0,0) to (width,height).
    *  For normalized [0,1] UV coords use $.uv instead. */
   readonly fragCoord: ExprProxy<"vec2">;

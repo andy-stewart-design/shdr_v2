@@ -89,6 +89,7 @@ export function createShader(options: ShaderOptions): ShaderInstance {
   // No vertex buffer needed — gl_VertexID drives the oversized triangle
   const uTime = gl.getUniformLocation(program, "u_time");
   const uResolution = gl.getUniformLocation(program, "u_resolution");
+  const uMouse = gl.getUniformLocation(program, "u_mouse");
 
   gl.useProgram(program);
 
@@ -98,6 +99,19 @@ export function createShader(options: ShaderOptions): ShaderInstance {
   const glRef = gl;
   let pendingWidth = canvas.clientWidth * devicePixelRatio;
   let pendingHeight = canvas.clientHeight * devicePixelRatio;
+  let mouseX = 0;
+  let mouseY = 0;
+
+  function handlePointerMove(event: PointerEvent) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    mouseX = (event.clientX - rect.left) * scaleX;
+    mouseY = (rect.bottom - event.clientY) * scaleY;
+  }
+
+  canvas.addEventListener("pointermove", handlePointerMove);
 
   const observer = new ResizeObserver((entries) => {
     const entry = entries[0];
@@ -132,6 +146,7 @@ export function createShader(options: ShaderOptions): ShaderInstance {
     glRef.viewport(0, 0, canvas.width, canvas.height);
     glRef.uniform1f(uTime, t);
     glRef.uniform2f(uResolution, canvas.width, canvas.height);
+    glRef.uniform2f(uMouse, mouseX, mouseY);
     glRef.drawArrays(glRef.TRIANGLES, 0, 3); // 3 vertices — one oversized triangle
 
     rafId = requestAnimationFrame(render);
@@ -145,6 +160,7 @@ export function createShader(options: ShaderOptions): ShaderInstance {
       destroyed = true;
       cancelAnimationFrame(rafId);
       observer.disconnect();
+      canvas.removeEventListener("pointermove", handlePointerMove);
       glRef.deleteShader(vert);
       glRef.deleteShader(frag);
       glRef.deleteProgram(program);

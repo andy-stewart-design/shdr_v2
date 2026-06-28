@@ -264,6 +264,9 @@ export function compileFragment(fn: FragmentFn): string {
     get resolution(): ExprProxy<"vec2"> {
       return refProxy(["u_resolution"], "vec2");
     },
+    get mouse(): ExprProxy<"vec2"> {
+      return refProxy(["u_mouse"], "vec2");
+    },
     get fragCoord(): ExprProxy<"vec2"> {
       return refProxy(["gl_FragCoord", "xy"], "vec2");
     },
@@ -306,6 +309,7 @@ export function compileFragment(fn: FragmentFn): string {
     "precision highp float;",
     "uniform float u_time;",
     "uniform vec2 u_resolution;",
+    "uniform vec2 u_mouse;",
     "out vec4 fragColor;",
     ...(constants.length > 0 ? [""] : []),
     ...constants.map(
