@@ -187,7 +187,9 @@ export type Builtins = {
   max: typeof max;
 };
 
-export type FragmentFn = (ctx: { $: ShaderContext } & Builtins) => void;
+export type FragmentFn<U extends UniformMap = UniformMap> = (ctx: {
+  $: ShaderContext<U>;
+} & Builtins) => void;
 
 // ---------------------------------------------------------------------------
 // GLSL keyword map
@@ -205,9 +207,9 @@ export const glslKeyword: Record<GlslType, string> = {
 // compileFragment — DSL function → GLSL string
 // ---------------------------------------------------------------------------
 
-export function compileFragment(
-  fn: FragmentFn,
-  options: { uniforms?: UniformMap } = {},
+export function compileFragment<U extends UniformMap = UniformMap>(
+  fn: FragmentFn<U>,
+  options: { uniforms?: U } = {},
 ): string {
   validateUniformMap(options.uniforms);
   const constants: ConstStatement[] = [];
@@ -237,9 +239,9 @@ export function compileFragment(
   }
 
   let varCounter = 0;
-  const customUniforms = options.uniforms ?? {};
+  const customUniforms: UniformMap = options.uniforms ?? {};
 
-  const $: ShaderContext = {
+  const $: ShaderContext<U> = {
     let<T extends GlslType>(
       nameOrValue: string | ExprProxy<T>,
       maybeValue?: ExprProxy<T>,
@@ -272,7 +274,7 @@ export function compileFragment(
         }
         return refProxy([`u_${prop}`], uniformKindToGlslType(uniform.kind));
       },
-    }) as Record<string, ExprProxy<any>>,
+    }) as ShaderContext<U>["u"],
     get uv(): ExprProxy<"vec2"> {
       return refProxy(["uv"], "vec2");
     },

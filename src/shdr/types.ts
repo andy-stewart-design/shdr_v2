@@ -1,4 +1,5 @@
 import type { NODE, GLSL_TYPE } from "./ast.ts";
+import type { UniformMap } from "./uniform.ts";
 
 // ---------------------------------------------------------------------------
 // AST node types
@@ -202,7 +203,15 @@ export type ConstStatement = {
 // ShaderContext — the $ object exposed to the fragment function
 // ---------------------------------------------------------------------------
 
-export type ShaderContext = {
+export type UniformExprs<U extends UniformMap> = {
+  readonly [K in keyof U]: U[K] extends { readonly kind: infer Kd }
+    ? Kd extends GlslType
+      ? ExprProxy<Kd>
+      : never
+    : never;
+};
+
+export type ShaderContext<U extends UniformMap = UniformMap> = {
   /** Declare a named local variable. */
   let<T extends GlslType>(name: string, value: ExprProxy<T>): ExprProxy<T>;
   /** Declare an auto-named local variable (_v0, _v1, …). */
@@ -216,7 +225,7 @@ export type ShaderContext = {
   /** Write to gl_FragColor — must be vec4. */
   output(value: Expr<"vec4">): void;
   /** Custom uniforms. `$.u.pixelation` compiles to `u_pixelation`. */
-  readonly u: Record<string, ExprProxy<any>>;
+  readonly u: UniformExprs<U>;
   /** Interpolated UV coord in [0,1]². */
   readonly uv: ExprProxy<"vec2">;
   /** Elapsed time in seconds (u_time uniform). */

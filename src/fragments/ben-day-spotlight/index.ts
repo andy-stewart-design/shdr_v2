@@ -4,7 +4,7 @@ export const uniforms = {
   dpi: uniform.float(12),
 };
 
-export const fragment: FragmentFn = ({
+export const fragment: FragmentFn<typeof uniforms> = ({
   $,
   vec2,
   vec3,

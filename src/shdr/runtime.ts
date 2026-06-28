@@ -5,10 +5,10 @@ import { validateUniformMap, type Uniform, type UniformMap } from "./uniform.ts"
 // Types
 // ---------------------------------------------------------------------------
 
-export interface ShaderOptions {
+export interface ShaderOptions<U extends UniformMap = UniformMap> {
   canvas: HTMLCanvasElement;
-  fragment: string | FragmentFn;
-  uniforms?: UniformMap;
+  fragment: string | FragmentFn<U>;
+  uniforms?: U;
 }
 
 export interface ShaderInstance {
@@ -110,7 +110,9 @@ function makeRuntimeUniform(
 // createShader — compile + run
 // ---------------------------------------------------------------------------
 
-export function createShader(options: ShaderOptions): ShaderInstance {
+export function createShader<U extends UniformMap = UniformMap>(
+  options: ShaderOptions<U>,
+): ShaderInstance {
   const { canvas } = options;
   validateUniformMap(options.uniforms);
 
