@@ -1,4 +1,5 @@
 import { compileFragment, type FragmentFn } from "./compile.ts";
+import { validateUniformMap, type Uniform, type UniformMap } from "./uniform.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -7,6 +8,7 @@ import { compileFragment, type FragmentFn } from "./compile.ts";
 export interface ShaderOptions {
   canvas: HTMLCanvasElement;
   fragment: string | FragmentFn;
+  uniforms?: UniformMap;
 }
 
 export interface ShaderInstance {
@@ -66,17 +68,56 @@ function linkProgram(
   return program;
 }
 
+type RuntimeUniform = {
+  uniform: Uniform;
+  location: WebGLUniformLocation | null;
+  apply(): void;
+};
+
+function makeRuntimeUniform(
+  gl: WebGL2RenderingContext,
+  program: WebGLProgram,
+  name: string,
+  uniform: Uniform,
+): RuntimeUniform {
+  const location = gl.getUniformLocation(program, `u_${name}`);
+
+  return {
+    uniform,
+    location,
+    apply() {
+      if (!location) return;
+      const value = uniform.get();
+      switch (uniform.kind) {
+        case "float":
+          gl.uniform1f(location, value as number);
+          break;
+        case "vec2":
+          gl.uniform2fv(location, value as [number, number]);
+          break;
+        case "vec3":
+          gl.uniform3fv(location, value as [number, number, number]);
+          break;
+        case "vec4":
+          gl.uniform4fv(location, value as [number, number, number, number]);
+          break;
+      }
+    },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // createShader — compile + run
 // ---------------------------------------------------------------------------
 
 export function createShader(options: ShaderOptions): ShaderInstance {
   const { canvas } = options;
+  validateUniformMap(options.uniforms);
 
   const glsl =
     typeof options.fragment === "string"
       ? options.fragment
-      : compileFragment(options.fragment);
+      : compileFragment(options.fragment, { uniforms: options.uniforms });
 
   // --- WebGL 2 setup ---
   const gl = canvas.getContext("webgl2");
@@ -90,6 +131,9 @@ export function createShader(options: ShaderOptions): ShaderInstance {
   const uTime = gl.getUniformLocation(program, "u_time");
   const uResolution = gl.getUniformLocation(program, "u_resolution");
   const uMouse = gl.getUniformLocation(program, "u_mouse");
+  const customUniforms = Object.entries(options.uniforms ?? {}).map(
+    ([name, uniform]) => makeRuntimeUniform(gl, program, name, uniform),
+  );
 
   gl.useProgram(program);
 
@@ -147,6 +191,9 @@ export function createShader(options: ShaderOptions): ShaderInstance {
     glRef.uniform1f(uTime, t);
     glRef.uniform2f(uResolution, canvas.width, canvas.height);
     glRef.uniform2f(uMouse, mouseX, mouseY);
+    for (const runtimeUniform of customUniforms) {
+      if (runtimeUniform.uniform.consumeDirty()) runtimeUniform.apply();
+    }
     glRef.drawArrays(glRef.TRIANGLES, 0, 3); // 3 vertices — one oversized triangle
 
     rafId = requestAnimationFrame(render);

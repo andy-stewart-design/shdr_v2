@@ -27,6 +27,8 @@ import {
   min,
   max,
 } from "./builtins.ts";
+import { uniformKindToGlslType, validateUniformMap } from "./uniform.ts";
+import type { UniformMap } from "./uniform.ts";
 import type {
   AstNode,
   BodyStatement,
@@ -203,7 +205,11 @@ export const glslKeyword: Record<GlslType, string> = {
 // compileFragment — DSL function → GLSL string
 // ---------------------------------------------------------------------------
 
-export function compileFragment(fn: FragmentFn): string {
+export function compileFragment(
+  fn: FragmentFn,
+  options: { uniforms?: UniformMap } = {},
+): string {
+  validateUniformMap(options.uniforms);
   const constants: ConstStatement[] = [];
   const statements: BodyStatement[] = [];
 
@@ -231,6 +237,8 @@ export function compileFragment(fn: FragmentFn): string {
   }
 
   let varCounter = 0;
+  const customUniforms = options.uniforms ?? {};
+
   const $: ShaderContext = {
     let<T extends GlslType>(
       nameOrValue: string | ExprProxy<T>,
@@ -255,6 +263,16 @@ export function compileFragment(fn: FragmentFn): string {
         value: toNode(value),
       });
     },
+    u: new Proxy({}, {
+      get(_target, prop) {
+        if (typeof prop !== "string") return undefined;
+        const uniform = customUniforms[prop];
+        if (!uniform) {
+          throw new Error(`Unknown custom uniform "${prop}".`);
+        }
+        return refProxy([`u_${prop}`], uniformKindToGlslType(uniform.kind));
+      },
+    }) as Record<string, ExprProxy<any>>,
     get uv(): ExprProxy<"vec2"> {
       return refProxy(["uv"], "vec2");
     },
@@ -310,6 +328,9 @@ export function compileFragment(fn: FragmentFn): string {
     "uniform float u_time;",
     "uniform vec2 u_resolution;",
     "uniform vec2 u_mouse;",
+    ...Object.entries(customUniforms).map(
+      ([name, uniform]) => `uniform ${glslKeyword[uniform.kind]} u_${name};`,
+    ),
     "out vec4 fragColor;",
     ...(constants.length > 0 ? [""] : []),
     ...constants.map(

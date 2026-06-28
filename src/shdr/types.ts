@@ -215,6 +215,8 @@ export type ShaderContext = {
   const(value: number): ExprProxy<"float">;
   /** Write to gl_FragColor — must be vec4. */
   output(value: Expr<"vec4">): void;
+  /** Custom uniforms. `$.u.pixelation` compiles to `u_pixelation`. */
+  readonly u: Record<string, ExprProxy<any>>;
   /** Interpolated UV coord in [0,1]². */
   readonly uv: ExprProxy<"vec2">;
   /** Elapsed time in seconds (u_time uniform). */
