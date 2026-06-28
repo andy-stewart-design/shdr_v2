@@ -1,8 +1,11 @@
 import { uniform, type FragmentFn } from "../../shdr/index.ts";
 
+const DEFAULT_PIXELATION_CSS_PX = 40;
+
 export const uniforms = {
   texture: uniform.texture2D("https://shdr.andystew.art/abstract.jpg"),
-  pixelation: uniform.float(40),
+  // Shader uniform is in physical pixels; GUI displays CSS pixels.
+  pixelation: uniform.float(DEFAULT_PIXELATION_CSS_PX * devicePixelRatio),
 };
 
 export const fragment: FragmentFn<typeof uniforms> = ({

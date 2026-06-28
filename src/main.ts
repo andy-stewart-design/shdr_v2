@@ -13,6 +13,9 @@ createShader({ canvas, fragment, uniforms });
 const gui = new GUI();
 addFloatUniformControl(gui, "pixelation", uniforms.pixelation, {
   min: 1,
-  max: 160,
+  max: 120,
   step: 1,
+  // GUI value is in CSS pixels; shader uniform is in physical pixels.
+  toUniform: (value) => value * devicePixelRatio,
+  fromUniform: (value) => value / devicePixelRatio,
 });

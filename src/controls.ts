@@ -17,15 +17,26 @@ export function addFloatUniformControl(
   gui: GuiLike,
   label: string,
   uniform: Uniform<"float">,
-  options: { min?: number; max?: number; step?: number } = {},
+  options: {
+    min?: number;
+    max?: number;
+    step?: number;
+    /** Convert the GUI value before writing it to the shader uniform. */
+    toUniform?: (value: number) => number;
+    /** Convert the current shader uniform value into the displayed GUI value. */
+    fromUniform?: (value: number) => number;
+  } = {},
 ) {
+  const toUniform = options.toUniform ?? ((value: number) => value);
+  const fromUniform = options.fromUniform ?? ((value: number) => value);
+
   const params = {
-    [label]: uniform.get(),
+    [label]: fromUniform(uniform.get()),
   };
 
   return gui
     .add(params, label, options.min, options.max, options.step)
     .onChange((value: number) => {
-      uniform.set(value);
+      uniform.set(toUniform(value));
     });
 }
