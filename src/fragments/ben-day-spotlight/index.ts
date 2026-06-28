@@ -1,6 +1,8 @@
 import { uniform, type FragmentFn } from "../../shdr/index.ts";
 
-export const dpi = uniform.float(12);
+export const uniforms = {
+  dpi: uniform.float(12),
+};
 
 export const fragment: FragmentFn = ({
   $,

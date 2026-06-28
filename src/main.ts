@@ -1,9 +1,8 @@
 import "./style.css";
 import GUI from "lil-gui";
+import { addFloatUniformControl } from "./controls.ts";
 import { createShader, compileFragment } from "./shdr/index.ts";
-import { fragment, dpi } from "./fragments/ben-day-spotlight";
-
-const uniforms = { dpi };
+import { fragment, uniforms } from "./fragments/ben-day-spotlight";
 
 console.log(compileFragment(fragment, { uniforms }));
 
@@ -11,11 +10,5 @@ const canvas = document.querySelector<HTMLCanvasElement>("#canvas")!;
 
 createShader({ canvas, fragment, uniforms });
 
-const params = {
-  dpi: uniforms.dpi.get(),
-};
-
 const gui = new GUI();
-gui.add(params, "dpi", 2, 40, 1).onChange((value: number) => {
-  uniforms.dpi.set(value);
-});
+addFloatUniformControl(gui, "dpi", uniforms.dpi, { min: 2, max: 40, step: 1 });
