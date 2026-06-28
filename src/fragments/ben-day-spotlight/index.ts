@@ -1,4 +1,6 @@
-import type { FragmentFn } from "../../shdr/index.ts";
+import { uniform, type FragmentFn } from "../../shdr/index.ts";
+
+export const dpi = uniform.float(12);
 
 export const fragment: FragmentFn = ({
   $,
@@ -14,7 +16,7 @@ export const fragment: FragmentFn = ({
   min,
   max,
 }) => {
-  const DPI = $.const("DPI", 12.0);
+  const { dpi } = $.u;
   const SPREAD_FACTOR = $.const("SPREAD_FACTOR", 0.625);
   const SPREAD_AMOUNT = $.const(
     "SPREAD_AMOUNT",
@@ -42,11 +44,11 @@ export const fragment: FragmentFn = ({
 
   // Save original coordinate space, then divide into repeating cells.
   let uvScreen = $.let("uvScreen", aspectUv);
-  let cellUv = $.let("cellUv", fract(aspectUv.mul(DPI)).mul(2.0).sub(1.0));
+  let cellUv = $.let("cellUv", fract(aspectUv.mul(dpi)).mul(2.0).sub(1.0));
 
   // Calculate the grid cell center in original coordinates.
-  let cellIndex = $.let("cellIndex", floor(uvScreen.mul(DPI)));
-  let cellCenter = $.let("cellCenter", cellIndex.add(0.5).div(DPI));
+  let cellIndex = $.let("cellIndex", floor(uvScreen.mul(dpi)));
+  let cellCenter = $.let("cellCenter", cellIndex.add(0.5).div(dpi));
 
   // Distance from each cell center to the mouse spotlight.
   let distFromMouse = $.let("distFromMouse", length(cellCenter.sub(mouse)));

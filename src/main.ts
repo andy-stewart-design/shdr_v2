@@ -1,9 +1,21 @@
 import "./style.css";
+import GUI from "lil-gui";
 import { createShader, compileFragment } from "./shdr/index.ts";
-import { fragment } from "./fragments/ben-day-spotlight";
+import { fragment, dpi } from "./fragments/ben-day-spotlight";
 
-console.log(compileFragment(fragment));
+const uniforms = { dpi };
+
+console.log(compileFragment(fragment, { uniforms }));
 
 const canvas = document.querySelector<HTMLCanvasElement>("#canvas")!;
 
-createShader({ canvas, fragment });
+createShader({ canvas, fragment, uniforms });
+
+const params = {
+  dpi: uniforms.dpi.get(),
+};
+
+const gui = new GUI();
+gui.add(params, "dpi", 2, 40, 1).onChange((value: number) => {
+  uniforms.dpi.set(value);
+});

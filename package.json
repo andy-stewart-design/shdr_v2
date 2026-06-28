@@ -13,5 +13,8 @@
   "devDependencies": {
     "typescript": "~6.0.2",
     "vite": "^8.1.0"
+  },
+  "dependencies": {
+    "lil-gui": "^0.21.0"
   }
 }
