@@ -1,6 +1,6 @@
 import "./style.css";
 import { createShader, compileFragment } from "./shdr/index.ts";
-import { fragment } from "./fragments/moby-gradient";
+import { fragment } from "./fragments/ben-day-spotlight";
 
 console.log(compileFragment(fragment));
 
