@@ -273,6 +273,17 @@ export function reflect(I: any, N: any): any {
 }
 
 // ---------------------------------------------------------------------------
+// Texture sampling
+// ---------------------------------------------------------------------------
+
+export function texture(
+  sampler: Expr<"sampler2D">,
+  uv: Expr<"vec2">,
+): ExprProxy<"vec4"> {
+  return makeCall("texture", [sampler, uv], "vec4");
+}
+
+// ---------------------------------------------------------------------------
 // Standalone arithmetic operators
 //
 // Mirror the chainable methods on ExprProxy but callable as free functions,

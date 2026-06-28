@@ -1,15 +1,16 @@
 import type { GlslType } from "./types.ts";
 
-export type UniformKind = "float" | "vec2" | "vec3" | "vec4";
+export type UniformKind = "float" | "vec2" | "vec3" | "vec4" | "texture2D";
 
-export type UniformValue<K extends UniformKind = UniformKind> =
-  K extends "float"
-    ? number
-    : K extends "vec2"
-      ? [number, number]
-      : K extends "vec3"
-        ? [number, number, number]
-        : [number, number, number, number];
+export type UniformValue<K extends UniformKind = UniformKind> = K extends "float"
+  ? number
+  : K extends "vec2"
+    ? [number, number]
+    : K extends "vec3"
+      ? [number, number, number]
+      : K extends "vec4"
+        ? [number, number, number, number]
+        : string;
 
 export type Uniform<K extends UniformKind = UniformKind> = {
   readonly kind: K;
@@ -20,12 +21,15 @@ export type Uniform<K extends UniformKind = UniformKind> = {
 
 export type UniformMap = Record<string, Uniform>;
 
-function equalValue(a: number | readonly number[], b: number | readonly number[]) {
-  if (typeof a === "number" || typeof b === "number") return a === b;
+function equalValue(
+  a: number | string | readonly number[],
+  b: number | string | readonly number[],
+) {
+  if (typeof a !== "object" || typeof b !== "object") return a === b;
   return a.length === b.length && a.every((v, i) => v === b[i]);
 }
 
-function copyValue<T extends number | readonly number[]>(value: T): T {
+function copyValue<T extends number | string | readonly number[]>(value: T): T {
   return (Array.isArray(value) ? [...value] : value) as T;
 }
 
@@ -67,10 +71,13 @@ export const uniform = {
   vec4(value: [number, number, number, number]): Uniform<"vec4"> {
     return makeUniform("vec4", value);
   },
+  texture2D(url: string): Uniform<"texture2D"> {
+    return makeUniform("texture2D", url);
+  },
 };
 
 export function uniformKindToGlslType(kind: UniformKind): GlslType {
-  return kind;
+  return kind === "texture2D" ? "sampler2D" : kind;
 }
 
 const RESERVED_UNIFORM_KEYS = new Set([

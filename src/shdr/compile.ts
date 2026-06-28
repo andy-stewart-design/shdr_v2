@@ -26,6 +26,7 @@ import {
   atan,
   min,
   max,
+  texture,
 } from "./builtins.ts";
 import { uniformKindToGlslType, validateUniformMap } from "./uniform.ts";
 import type { UniformMap } from "./uniform.ts";
@@ -163,6 +164,7 @@ export type Builtins = {
   vec3: typeof vec3;
   vec4: typeof vec4;
   mat2: typeof mat2;
+  texture: typeof texture;
   sin: typeof sin;
   cos: typeof cos;
   abs: typeof abs;
@@ -201,6 +203,7 @@ export const glslKeyword: Record<GlslType, string> = {
   vec3: "vec3",
   vec4: "vec4",
   mat2: "mat2",
+  sampler2D: "sampler2D",
 };
 
 // ---------------------------------------------------------------------------
@@ -269,10 +272,17 @@ export function compileFragment<U extends UniformMap = UniformMap>(
       get(_target, prop) {
         if (typeof prop !== "string") return undefined;
         const uniform = customUniforms[prop];
-        if (!uniform) {
-          throw new Error(`Unknown custom uniform "${prop}".`);
+        if (uniform) {
+          return refProxy([`u_${prop}`], uniformKindToGlslType(uniform.kind));
         }
-        return refProxy([`u_${prop}`], uniformKindToGlslType(uniform.kind));
+        if (prop.endsWith("Resolution")) {
+          const base = prop.slice(0, -"Resolution".length);
+          const textureUniform = customUniforms[base];
+          if (textureUniform?.kind === "texture2D") {
+            return refProxy([`u_${base}_resolution`], "vec2");
+          }
+        }
+        throw new Error(`Unknown custom uniform "${prop}".`);
       },
     }) as ShaderContext<U>["u"],
     get uv(): ExprProxy<"vec2"> {
@@ -298,6 +308,7 @@ export function compileFragment<U extends UniformMap = UniformMap>(
     vec3,
     vec4,
     mat2,
+    texture,
     sin,
     cos,
     abs,
@@ -330,8 +341,10 @@ export function compileFragment<U extends UniformMap = UniformMap>(
     "uniform float u_time;",
     "uniform vec2 u_resolution;",
     "uniform vec2 u_mouse;",
-    ...Object.entries(customUniforms).map(
-      ([name, uniform]) => `uniform ${glslKeyword[uniform.kind]} u_${name};`,
+    ...Object.entries(customUniforms).flatMap(([name, uniform]) =>
+      uniform.kind === "texture2D"
+        ? [`uniform sampler2D u_${name};`, `uniform vec2 u_${name}_resolution;`]
+        : [`uniform ${glslKeyword[uniform.kind]} u_${name};`],
     ),
     "out vec4 fragColor;",
     ...(constants.length > 0 ? [""] : []),

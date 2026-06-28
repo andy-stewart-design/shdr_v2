@@ -79,8 +79,70 @@ function makeRuntimeUniform(
   program: WebGLProgram,
   name: string,
   uniform: Uniform,
+  textureUnit: number,
 ): RuntimeUniform {
   const location = gl.getUniformLocation(program, `u_${name}`);
+
+  if (uniform.kind === "texture2D") {
+    const resolutionLocation = gl.getUniformLocation(
+      program,
+      `u_${name}_resolution`,
+    );
+    const glTexture = gl.createTexture();
+    let loadId = 0;
+
+    gl.activeTexture(gl.TEXTURE0 + textureUnit);
+    gl.bindTexture(gl.TEXTURE_2D, glTexture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.RGBA,
+      1,
+      1,
+      0,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      new Uint8Array([0, 0, 0, 255]),
+    );
+    if (resolutionLocation) gl.uniform2f(resolutionLocation, 1, 1);
+
+    function loadTexture(url: string) {
+      const currentLoadId = ++loadId;
+      const image = new Image();
+      image.crossOrigin = "anonymous";
+      image.onload = () => {
+        if (currentLoadId !== loadId) return;
+        gl.activeTexture(gl.TEXTURE0 + textureUnit);
+        gl.bindTexture(gl.TEXTURE_2D, glTexture);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+        gl.texImage2D(
+          gl.TEXTURE_2D,
+          0,
+          gl.RGBA,
+          gl.RGBA,
+          gl.UNSIGNED_BYTE,
+          image,
+        );
+        if (resolutionLocation) {
+          gl.uniform2f(resolutionLocation, image.naturalWidth, image.naturalHeight);
+        }
+      };
+      image.src = url;
+    }
+
+    return {
+      uniform,
+      location,
+      apply() {
+        if (location) gl.uniform1i(location, textureUnit);
+        loadTexture(uniform.get() as string);
+      },
+    };
+  }
 
   return {
     uniform,
@@ -133,11 +195,20 @@ export function createShader<U extends UniformMap = UniformMap>(
   const uTime = gl.getUniformLocation(program, "u_time");
   const uResolution = gl.getUniformLocation(program, "u_resolution");
   const uMouse = gl.getUniformLocation(program, "u_mouse");
-  const customUniforms = Object.entries(options.uniforms ?? {}).map(
-    ([name, uniform]) => makeRuntimeUniform(gl, program, name, uniform),
-  );
 
   gl.useProgram(program);
+
+  let nextTextureUnit = 0;
+  const customUniforms = Object.entries(options.uniforms ?? {}).map(
+    ([name, uniform]) =>
+      makeRuntimeUniform(
+        gl,
+        program,
+        name,
+        uniform,
+        uniform.kind === "texture2D" ? nextTextureUnit++ : 0,
+      ),
+  );
 
   // --- Resize handling ---
   // Store pending size from ResizeObserver; apply inside the render loop

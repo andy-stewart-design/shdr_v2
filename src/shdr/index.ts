@@ -61,6 +61,8 @@ export {
   smoothstep,
   step,
   clamp,
+  // texture
+  texture,
   // geometry
   dot,
   length,

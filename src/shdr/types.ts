@@ -100,7 +100,7 @@ export type TupleShaderFn<
 // GLSL type universe
 // ---------------------------------------------------------------------------
 
-export type GlslType = "float" | "vec2" | "vec3" | "vec4" | "mat2";
+export type GlslType = "float" | "vec2" | "vec3" | "vec4" | "mat2" | "sampler2D";
 
 export type Channels<T extends GlslType> = T extends "float"
   ? never
@@ -203,13 +203,22 @@ export type ConstStatement = {
 // ShaderContext — the $ object exposed to the fragment function
 // ---------------------------------------------------------------------------
 
+type UniformExprKind<K> = K extends "texture2D" ? "sampler2D" : K;
+
+type TextureResolutionExprs<U extends UniformMap> = {
+  readonly [K in keyof U as U[K] extends { readonly kind: "texture2D" }
+    ? `${Extract<K, string>}Resolution`
+    : never]: ExprProxy<"vec2">;
+};
+
 export type UniformExprs<U extends UniformMap> = {
   readonly [K in keyof U]: U[K] extends { readonly kind: infer Kd }
-    ? Kd extends GlslType
-      ? ExprProxy<Kd>
+    ? UniformExprKind<Kd> extends GlslType
+      ? ExprProxy<UniformExprKind<Kd>>
       : never
     : never;
-};
+} &
+  TextureResolutionExprs<U>;
 
 export type ShaderContext<U extends UniformMap = UniformMap> = {
   /** Declare a named local variable. */
