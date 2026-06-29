@@ -49,7 +49,10 @@ function makeUniform<K extends UniformKind>(
       return copyValue(value);
     },
     set(nextValue) {
-      if (equalValue(value, nextValue)) return;
+      // Texture uniforms skip equality checking — the async load cost makes
+      // the optimisation pointless, and it means .set(sameUrl) always works
+      // as a retry after a failed load without any special error handling.
+      if (kind !== "texture2D" && equalValue(value, nextValue)) return;
       value = copyValue(nextValue);
       dirty = true;
     },

@@ -77,6 +77,8 @@ function linkProgram(
 type RuntimeUniform = {
   uniform: Uniform;
   location: WebGLUniformLocation | null;
+  /** Bind the sampler unit — cheap, called every frame to survive program re-links. */
+  bindSampler?(): void;
   apply(): void;
   destroy?(): void;
 };
@@ -152,6 +154,8 @@ function makeRuntimeUniform(
         if (objectUrl) URL.revokeObjectURL(objectUrl);
         if (destroyed || currentLoadId !== loadId) return;
         console.warn(`Failed to load texture uniform "${name}" from ${url}`);
+        // Retry is handled automatically: texture uniforms skip equality
+        // checks in set(), so calling .set(sameUrl) always triggers a reload.
       };
       image.src = url;
     }
@@ -159,8 +163,10 @@ function makeRuntimeUniform(
     return {
       uniform,
       location,
-      apply() {
+      bindSampler() {
         if (location) gl.uniform1i(location, textureUnit);
+      },
+      apply() {
         loadTexture(uniform.get() as string | File | Blob);
       },
       destroy() {
@@ -292,6 +298,7 @@ export function createShader<U extends UniformMap = UniformMap>(
     glRef.uniform2f(uResolution, canvas.width, canvas.height);
     glRef.uniform2f(uMouse, mouseX, mouseY);
     for (const runtimeUniform of customUniforms) {
+      runtimeUniform.bindSampler?.();                          // always — survives program re-links
       if (runtimeUniform.uniform.consumeDirty()) runtimeUniform.apply();
     }
     glRef.drawArrays(glRef.TRIANGLES, 0, 3); // 3 vertices — one oversized triangle
