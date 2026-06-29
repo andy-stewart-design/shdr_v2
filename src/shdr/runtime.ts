@@ -1,5 +1,9 @@
 import { compileFragment, type FragmentFn } from "./compile.ts";
-import { validateUniformMap, type Uniform, type UniformMap } from "./uniform.ts";
+import {
+  validateUniformMap,
+  type Uniform,
+  type UniformMap,
+} from "./uniform.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -11,7 +15,9 @@ export interface ShaderOptions<U extends UniformMap = UniformMap> {
   uniforms?: U;
 }
 
-export interface ShaderInstance {
+export interface ShaderInstance<U extends UniformMap = UniformMap> {
+  /** Custom uniforms passed to createShader. */
+  readonly uniforms: U;
   /** Stop the render loop and free all WebGL resources. */
   destroy(): void;
 }
@@ -115,7 +121,8 @@ function makeRuntimeUniform(
     function loadTexture(source: string | File | Blob) {
       const currentLoadId = ++loadId;
       const image = new Image();
-      const objectUrl = source instanceof Blob ? URL.createObjectURL(source) : null;
+      const objectUrl =
+        source instanceof Blob ? URL.createObjectURL(source) : null;
       const url = objectUrl ?? (source as string);
 
       image.crossOrigin = source instanceof Blob ? "" : "anonymous";
@@ -194,7 +201,7 @@ function makeRuntimeUniform(
 
 export function createShader<U extends UniformMap = UniformMap>(
   options: ShaderOptions<U>,
-): ShaderInstance {
+): ShaderInstance<U> {
   const { canvas } = options;
   validateUniformMap(options.uniforms);
 
@@ -296,6 +303,7 @@ export function createShader<U extends UniformMap = UniformMap>(
 
   // --- Cleanup ---
   return {
+    uniforms: options.uniforms ?? ({} as U),
     destroy() {
       destroyed = true;
       cancelAnimationFrame(rafId);
