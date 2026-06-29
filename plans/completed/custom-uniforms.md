@@ -229,7 +229,7 @@ type UniformExprs<U extends UniformMap> = {
 };
 
 type ShaderContext<U extends UniformMap = {}> = {
-  uniforms: UniformExprs<U>;
+  u: UniformExprs<U>;
   // existing fields...
 };
 ```
@@ -405,7 +405,7 @@ Conceptual implementation:
 ```ts
 const input = document.createElement("input");
 input.type = "file";
-input.accept = "image/*";
+input.accept = "image/png,image/jpeg,image/webp,image/gif";
 input.style.display = "none";
 
 document.body.appendChild(input);
@@ -433,7 +433,9 @@ Cleanup should remove the hidden input if the control helper returns a disposer 
 
 ## Phase 6 — Optional Ergonomics
 
-Possible later improvements:
+Partially implemented: `createShader(...)` now returns the original custom uniform map on `shader.uniforms`.
+
+Remaining possible later improvements:
 
 ### Uniform Group Helpers
 
@@ -444,9 +446,9 @@ const controls = uniforms({
 });
 ```
 
-### Runtime Instance Uniform Updates
+### Runtime Instance Uniform Updates — implemented
 
-In addition to direct `.set(...)`, `createShader` could expose:
+In addition to direct `.set(...)`, `createShader` exposes:
 
 ```ts
 const shader = createShader(...);
@@ -486,8 +488,8 @@ createShader({
 Desired shader concepts:
 
 ```ts
-const textureAR = $.uniforms.textureResolution.x.div(
-  $.uniforms.textureResolution.y,
+const textureAR = $.u.textureResolution.x.div(
+  $.u.textureResolution.y,
 );
 const canvasAR = $.resolution.x.div($.resolution.y);
 
@@ -629,9 +631,19 @@ A dev warning can be considered later, but is not required for Phase 1.
 
 ## Remaining Open Questions
 
-These do not block Phase 1.
+These do not block the completed implementation.
 
-- What exact API should texture uniforms expose?
-  - Flat: `$.u.texture` and `$.u.textureResolution`
-  - Object-like: `$.u.texture.sample(uv)` and `$.u.texture.resolution`
+- Should texture uniforms eventually get an object-like API?
+  - Current implemented API: `$.u.texture` and `$.u.textureResolution`
+  - Possible future API: `$.u.texture.sample(uv)` and `$.u.texture.resolution`
 - Should built-ins eventually move onto the same uniform system internally?
+
+
+---
+
+## Documentation cleanup notes
+
+- Updated stale `$.uniforms...` examples to the implemented `$.u...` API.
+- Marked `shader.uniforms` as implemented rather than hypothetical Phase 6 work.
+- Updated the local upload file picker example to match the implemented browser-supported MIME filter: PNG, JPEG, WebP, and GIF.
+- Clarified that the flat texture API, `$.u.texture` plus `$.u.textureResolution`, is the current implemented API; object-like texture access remains future work.

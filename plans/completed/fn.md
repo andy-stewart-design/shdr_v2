@@ -1,4 +1,4 @@
-# Plan: User-Defined Shader Functions (`defn`)
+# Plan: User-Defined Shader Functions (`fn`)
 
 ## Goal
 
@@ -7,10 +7,10 @@ importable and composable like regular TypeScript:
 
 ```ts
 // rot.ts
-import { defn, Float, Mat2, sin, cos, mat2 } from "./shdr";
+import { fn, Float, Mat2 } from "./shdr";
 
-export const rot = defn("rot", { a: Float }, Mat2, ({ a }) => {
-  return mat2(cos(a), sin(a), sin(a).neg(), cos(a));
+export const rot = fn("rot", [Float], Mat2, ([a], { sin, cos, mat2 }) => {
+  return mat2(cos(a), sin(a).neg(), sin(a), cos(a));
 });
 
 // main.ts
@@ -28,8 +28,8 @@ createShader({
 Emitted GLSL:
 
 ```glsl
-mat2 rot(float a) {
-  return mat2(cos(a), sin(a), (-sin(a)), cos(a));
+mat2 rot(float _p0) {
+  return mat2(cos(_p0), (-sin(_p0)), sin(_p0), cos(_p0));
 }
 
 void main() {
@@ -99,19 +99,28 @@ type FnCallNode = { kind: "fncall"; def: FnDef; args: AstNode[] };
 
 ---
 
-## Phase 2 — `defn` + single-function compilation
+## Phase 2 — `fn` + single-function compilation
 
-**What:** Implement `defn` and teach the compiler to emit one function definition.
-Functions that call other `defn` functions are not yet handled (phase 3).
+**What:** Implement `fn` and teach the compiler to emit one function definition.
+Functions that call other `fn` functions are not yet handled (phase 3).
 
-**`defn` implementation (new file `src/shdr/defn.ts`):**
+**`fn` implementation (new file `src/shdr/fn.ts`):**
 
 ```ts
-export function defn<S extends Record<string, GlslType>, R extends GlslType>(
+// Positional tuple form
+export function fn<T extends readonly GlslType[], R extends GlslType>(
+  name: string,
+  params: readonly [...T],
+  returnType: R,
+  body: (args: TupleToExprs<T>, ctx: FnContext) => ExprProxy<R>,
+): TupleShaderFn<T, R>;
+
+// Named object form
+export function fn<S extends Record<string, GlslType>, R extends GlslType>(
   name: string,
   params: S,
   returnType: R,
-  body: (args: ParamsToExprs<S>) => ExprProxy<R>,
+  body: (args: ParamsToExprs<S>, ctx: FnContext) => ExprProxy<R>,
 ): ShaderFn<S, R>;
 ```
 
@@ -130,8 +139,8 @@ After the fragment fn runs and statements are collected, walk the full statement
 tree and gather all `FnDef`s referenced via `FnCallNode`. Emit them before `main()`:
 
 ```glsl
-mat2 rot(float a) {
-  return mat2(cos(a), sin(a), (-sin(a)), cos(a));
+mat2 rot(float _p0) {
+  return mat2(cos(_p0), (-sin(_p0)), sin(_p0), cos(_p0));
 }
 ```
 
@@ -141,20 +150,20 @@ mat2 rot(float a) {
 case "fncall": return `${node.def.name}(${node.args.map(compileExpr).join(", ")})`;
 ```
 
-**Verifiable when:** A single `defn`-defined function (e.g. `rot`) compiles correctly
+**Verifiable when:** A single `fn`-defined function (e.g. `rot`) compiles correctly
 and the GLSL output includes the function definition above `main()`.
 
 ---
 
 ## Phase 3 — Dependency resolution (functions calling functions)
 
-**What:** Handle `defn` functions that call other `defn` functions.
+**What:** Handle `fn` functions that call other `fn` functions.
 The compiler must discover the full dependency graph, deduplicate, and emit in
 topologically correct order.
 
 ```ts
-const hash  = defn("hash",  { p: Vec2 }, Vec2, ...);
-const noise = defn("noise", { p: Vec2 }, Float, ({ p, $ }) => {
+const hash  = fn("hash",  { p: Vec2 }, Vec2, ...);
+const noise = fn("noise", { p: Vec2 }, Float, ({ p, $ }) => {
   const h = $.let("h", hash(p));  // noise depends on hash
   ...
 });
@@ -190,7 +199,18 @@ error (`Circular dependency detected: noise → hash → noise`).
 | ------------------------ | --------------------------------------------------------- |
 | `src/shdr/types.ts`      | `FnDef`, `ShaderFn`, `ParamsToExprs`, `FnCallNode`        |
 | `src/shdr/ast.ts`        | `FnCallNode` in `AstNode` union, `compileExpr` case       |
-| `src/shdr/defn.ts`       | New file — `defn` function                                |
+| `src/shdr/fn.ts`         | New file — `fn` function                                |
 | `src/shdr/compile.ts`    | Harvest + emit `FnDef`s; topological sort                 |
 | `src/shdr/glsl-types.ts` | New file — dual-namespace `Float`, `Vec2`, etc.           |
-| `src/shdr/index.ts`      | Re-export `defn`, `Float`, `Vec2`, `Vec3`, `Vec4`, `Mat2` |
+| `src/shdr/index.ts`      | Re-export `fn`, `Float`, `Vec2`, `Vec3`, `Vec4`, `Mat2` |
+
+
+---
+
+## Documentation cleanup notes
+
+- Renamed the documented API from `defn` to the implemented `fn` API.
+- Updated the implementation file reference from `src/shdr/defn.ts` to `src/shdr/fn.ts`.
+- Kept the original phased structure, because the implemented function system still matches the planned type infrastructure, function compilation, dependency discovery, and topological emission behavior.
+- Updated the top-level example to use the implemented positional tuple API (`fn("rot", [Float], ...)`) and builtins from the function context.
+- Note: the implementation also supports named object parameters in addition to positional tuple parameters.
