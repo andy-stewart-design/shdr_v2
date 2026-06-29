@@ -3,7 +3,13 @@ export { compileFragment, compileFn } from "./compile.ts";
 export { createShader } from "./runtime.ts";
 export type { ShaderOptions, ShaderInstance } from "./runtime.ts";
 export { uniform } from "./uniform.ts";
-export type { Uniform, UniformMap, UniformKind, UniformValue } from "./uniform.ts";
+export type {
+  Uniform,
+  UniformMap,
+  UniformKind,
+  UniformValue,
+  TextureSource,
+} from "./uniform.ts";
 export type { FragmentFn, Builtins } from "./compile.ts";
 export type {
   ExprProxy,

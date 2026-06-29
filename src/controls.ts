@@ -13,6 +13,34 @@ type GuiLike = {
   };
 };
 
+export function addTextureUploadControl(
+  gui: GuiLike,
+  label: string,
+  uniform: Uniform<"texture2D">,
+) {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/png,image/jpeg,image/webp,image/gif";
+  input.style.display = "none";
+  document.body.appendChild(input);
+
+  input.addEventListener("change", () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    uniform.set(file);
+    input.value = "";
+  });
+
+  const property = label.replace(/\W+/g, "_") || "uploadTexture";
+  const params = {
+    [property]() {
+      input.click();
+    },
+  };
+
+  return gui.add(params, property).name?.(label);
+}
+
 export function addStringUniformControl(
   gui: GuiLike,
   label: string,

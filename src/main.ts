@@ -1,6 +1,10 @@
 import "./style.css";
 import GUI from "lil-gui";
-import { addFloatUniformControl, addStringUniformControl } from "./controls.ts";
+import {
+  addFloatUniformControl,
+  addStringUniformControl,
+  addTextureUploadControl,
+} from "./controls.ts";
 import { createShader, compileFragment } from "./shdr/index.ts";
 import { fragment, uniforms } from "./fragments/pixelation";
 
@@ -12,6 +16,7 @@ createShader({ canvas, fragment, uniforms });
 
 const gui = new GUI();
 addStringUniformControl(gui, "texture", uniforms.texture);
+addTextureUploadControl(gui, "Upload texture", uniforms.texture);
 addFloatUniformControl(gui, "pixelation", uniforms.pixelation, {
   min: 1,
   max: 120,

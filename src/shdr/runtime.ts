@@ -112,11 +112,15 @@ function makeRuntimeUniform(
     );
     if (resolutionLocation) gl.uniform2f(resolutionLocation, 1, 1);
 
-    function loadTexture(url: string) {
+    function loadTexture(source: string | File | Blob) {
       const currentLoadId = ++loadId;
       const image = new Image();
-      image.crossOrigin = "anonymous";
+      const objectUrl = source instanceof Blob ? URL.createObjectURL(source) : null;
+      const url = objectUrl ?? (source as string);
+
+      image.crossOrigin = source instanceof Blob ? "" : "anonymous";
       image.onload = () => {
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
         if (destroyed || currentLoadId !== loadId) return;
         gl.activeTexture(gl.TEXTURE0 + textureUnit);
         gl.bindTexture(gl.TEXTURE_2D, glTexture);
@@ -130,10 +134,15 @@ function makeRuntimeUniform(
           image,
         );
         if (resolutionLocation) {
-          gl.uniform2f(resolutionLocation, image.naturalWidth, image.naturalHeight);
+          gl.uniform2f(
+            resolutionLocation,
+            image.naturalWidth,
+            image.naturalHeight,
+          );
         }
       };
       image.onerror = () => {
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
         if (destroyed || currentLoadId !== loadId) return;
         console.warn(`Failed to load texture uniform "${name}" from ${url}`);
       };
@@ -145,7 +154,7 @@ function makeRuntimeUniform(
       location,
       apply() {
         if (location) gl.uniform1i(location, textureUnit);
-        loadTexture(uniform.get() as string);
+        loadTexture(uniform.get() as string | File | Blob);
       },
       destroy() {
         destroyed = true;
