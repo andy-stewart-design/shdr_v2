@@ -9,9 +9,23 @@ type GuiLike = {
     step?: number,
   ): {
     name?(label: string): unknown;
-    onChange(fn: (value: number) => void): unknown;
+    onChange(fn: (value: any) => void): unknown;
   };
 };
+
+export function addStringUniformControl(
+  gui: GuiLike,
+  label: string,
+  uniform: Uniform<"texture2D">,
+) {
+  const params = {
+    [label]: uniform.get(),
+  };
+
+  return gui.add(params, label).onChange((value: string) => {
+    uniform.set(value);
+  });
+}
 
 export function addFloatUniformControl(
   gui: GuiLike,

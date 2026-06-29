@@ -337,7 +337,101 @@ Video/canvas textures are dynamic and may need per-frame uploads, so they should
 
 ---
 
-## Phase 5 — Optional Ergonomics
+## Phase 5 — Local Texture Upload MVP
+
+Allow texture uniforms to accept local uploaded image files.
+
+### API
+
+Extend texture uniform values from only URL strings:
+
+```ts
+uniform.texture2D("/image.jpg");
+texture.set("/other.jpg");
+```
+
+to also support `File` / `Blob`:
+
+```ts
+const texture = uniform.texture2D("/default.jpg");
+texture.set(file);
+```
+
+Suggested type:
+
+```ts
+type TextureSource = string | File | Blob;
+```
+
+Then:
+
+```ts
+UniformValue<"texture2D"> = TextureSource;
+```
+
+### Runtime Requirements
+
+When the source is a string:
+
+- load it as a normal URL
+
+When the source is a `File` or `Blob`:
+
+- create an object URL with `URL.createObjectURL(source)`
+- load that URL into an `Image`
+- upload the image to the WebGL texture on load
+- update `u_texture_resolution`
+- revoke the object URL after load/error
+
+Important details:
+
+- keep the old texture active while the new local image loads
+- ignore stale async loads if a newer source is set before the previous load finishes
+- compare strings by value
+- compare `File` / `Blob` values by object identity
+
+### lil-gui Upload Button Helper
+
+`lil-gui` does not have a native file picker control, but a button can trigger a hidden file input.
+
+Possible helper:
+
+```ts
+addTextureUploadControl(gui, "Upload texture", uniforms.texture);
+```
+
+Conceptual implementation:
+
+```ts
+const input = document.createElement("input");
+input.type = "file";
+input.accept = "image/*";
+input.style.display = "none";
+
+document.body.appendChild(input);
+
+input.addEventListener("change", () => {
+  const file = input.files?.[0];
+  if (!file) return;
+
+  textureUniform.set(file);
+  input.value = "";
+});
+
+const params = {
+  uploadTexture() {
+    input.click();
+  },
+};
+
+gui.add(params, "uploadTexture").name("Upload texture");
+```
+
+Cleanup should remove the hidden input if the control helper returns a disposer or if/when a more formal controls lifecycle is added.
+
+---
+
+## Phase 6 — Optional Ergonomics
 
 Possible later improvements:
 

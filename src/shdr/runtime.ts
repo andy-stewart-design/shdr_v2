@@ -72,6 +72,7 @@ type RuntimeUniform = {
   uniform: Uniform;
   location: WebGLUniformLocation | null;
   apply(): void;
+  destroy?(): void;
 };
 
 function makeRuntimeUniform(
@@ -90,6 +91,7 @@ function makeRuntimeUniform(
     );
     const glTexture = gl.createTexture();
     let loadId = 0;
+    let destroyed = false;
 
     gl.activeTexture(gl.TEXTURE0 + textureUnit);
     gl.bindTexture(gl.TEXTURE_2D, glTexture);
@@ -115,7 +117,7 @@ function makeRuntimeUniform(
       const image = new Image();
       image.crossOrigin = "anonymous";
       image.onload = () => {
-        if (currentLoadId !== loadId) return;
+        if (destroyed || currentLoadId !== loadId) return;
         gl.activeTexture(gl.TEXTURE0 + textureUnit);
         gl.bindTexture(gl.TEXTURE_2D, glTexture);
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
@@ -131,6 +133,10 @@ function makeRuntimeUniform(
           gl.uniform2f(resolutionLocation, image.naturalWidth, image.naturalHeight);
         }
       };
+      image.onerror = () => {
+        if (destroyed || currentLoadId !== loadId) return;
+        console.warn(`Failed to load texture uniform "${name}" from ${url}`);
+      };
       image.src = url;
     }
 
@@ -140,6 +146,11 @@ function makeRuntimeUniform(
       apply() {
         if (location) gl.uniform1i(location, textureUnit);
         loadTexture(uniform.get() as string);
+      },
+      destroy() {
+        destroyed = true;
+        loadId++;
+        if (glTexture) gl.deleteTexture(glTexture);
       },
     };
   }
@@ -281,6 +292,7 @@ export function createShader<U extends UniformMap = UniformMap>(
       cancelAnimationFrame(rafId);
       observer.disconnect();
       canvas.removeEventListener("pointermove", handlePointerMove);
+      for (const runtimeUniform of customUniforms) runtimeUniform.destroy?.();
       glRef.deleteShader(vert);
       glRef.deleteShader(frag);
       glRef.deleteProgram(program);
