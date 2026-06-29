@@ -1,170 +1,193 @@
-# PRD: Implicit Variable Naming via Compile-Time Transform
+# PRD: Implicit Naming Transform (Vite Plugin)
 
 ## Problem
 
 The DSL currently requires explicit names to produce readable GLSL output:
 
 ```ts
-const tuv = $.let("tuv", $.uv.sub(0.5));
-const distX = $.let(
-  "distX",
-  sin(tuv.y.mul(WAVE_FREQ).add(speed)).div(WAVE_AMP),
-);
+const tuv   = $.let("tuv",   $.uv.sub(0.5));
+const distX = $.let("distX", sin(tuv.y.mul(WAVE_FREQ).add(speed)).div(WAVE_AMP));
 ```
 
-Without `$.let`, variables are inlined and the output becomes a single unreadable expression. The name `"tuv"` has to be written twice — once for JS, once for GLSL — which is redundant and noisy.
-
-The ideal is that this simpler form:
+The name appears twice — once for JS, once for GLSL — which is redundant noise.
+`fn()` also requires an explicit name string as its first argument:
 
 ```ts
-const tuv = $.uv.sub(0.5);
-const distX = sin(tuv.y.mul(WAVE_FREQ).add(speed)).div(WAVE_AMP);
+const rot = fn("rot", [Float], Mat2, ([a], { sin, cos, mat2 }) => { ... });
 ```
 
-…produces the same readable GLSL as the verbose form. The variable names already exist in the source — they're just erased before runtime.
+The goal is that users write simpler, cleaner code and the transform handles the ceremony invisibly — exactly like the Svelte compiler. The user's source files are never modified; rewrites happen only in Vite's transform pipeline.
 
-## Approach
+```ts
+// What the user writes
+const tuv   = $.uv.sub(0.5);
+const distX = sin(tuv.y.mul(WAVE_FREQ).add(speed)).div(WAVE_AMP);
+const rot   = fn([Float], Mat2, ([a], { sin, cos, mat2 }) => { ... });
 
-A **Vite plugin** (or Babel/TS transform) that rewrites the source before it executes, injecting `$.let` / `$.const` calls using the JS variable names it finds in the AST.
+// What the transform emits (user never sees this)
+const tuv   = $.let("tuv",   $.uv.sub(0.5));
+const distX = $.let("distX", sin(tuv.y.mul(WAVE_FREQ).add(speed)).div(WAVE_AMP));
+const rot   = fn("rot", [Float], Mat2, ([a], { sin, cos, mat2 }) => { ... });
+```
 
-### Transform rule
+---
 
-Inside a `compileFragment(...)` or `createShader({ fragment: ... })` callback, every `const` declaration whose initializer is a shader expression gets rewritten:
+## Phase 1 — Variable naming + fn name inference
+
+### Naming conventions
+
+JS identifier casing is the sole signal. The JS keyword (`const` vs `let`) is ignored — both are treated identically.
+
+| JS name | Transform injects | GLSL output |
+|---|---|---|
+| `camelCase` | `$.let("name", expr)` | `float name = ...;` inside `main()` |
+| `SCREAMING_CASE` | `$.const("NAME", expr)` | `const float NAME = ...;` above `main()` |
+| `_camelCase` | nothing — left as-is | inlined wherever used |
+
+`_camelCase` is the escape hatch for:
+1. Intermediate expressions named for readability but not needed in GLSL output
+2. Plain JS values inside the callback that aren't shader expressions
+
+```ts
+const _scale = 30.0;                                    // not touched
+const distX  = sin(tuv.y.mul(WAVE_FREQ)).div(_scale);   // _scale inlined
+```
+
+`SCREAMING_CASE` inside `fn()` bodies is treated as `_camelCase` (inline), since
+`$.const` does not exist in `FnContext`. The distinction between GLSL constant and
+inline literal matters less inside a function body.
+
+### fn name inference
+
+When a `fn()` call has no string as its first argument, the transform injects the
+name from the JS binding:
 
 ```ts
 // Input
-const tuv = $.uv.sub(0.5);
+const rot = fn([Float], Mat2, body);
 
 // Output
-const tuv = $.let("tuv", $.uv.sub(0.5));
+const rot = fn("rot", [Float], Mat2, body);
 ```
 
-### Naming heuristic
+Detection: if the first argument is not a `StringLiteral`, inject `"bindingName"`
+as a new first argument.
 
-| JS variable name       | Emitted as              | GLSL output                                   |
-| ---------------------- | ----------------------- | --------------------------------------------- |
-| `camelCase`            | `$.let("name", expr)`   | `float/vec* name = ...;` inside `main()`      |
-| `SCREAMING_SNAKE_CASE` | `$.const("NAME", expr)` | `const float/vec* NAME = ...;` above `main()` |
+### Backward compatibility
 
-This mirrors the convention already used in the DSL by hand.
+The transform is per-declaration, not per-file. Each declaration is evaluated
+independently:
 
-### Detection strategy
+- If the initialiser is already `$.let(...)` or `$.const(...)` — skip it
+- If the `fn()` first argument is already a string — skip it
 
-The transform needs to know which `const` declarations inside the callback are shader expressions vs plain JS values. Two options:
+This means explicit and implicit styles can be freely mixed in the same callback.
+Existing code works unchanged without opt-in.
 
-1. **Transform everything** — rewrite all `const` declarations inside the callback, and rely on the TypeScript type system to flag any that aren't `ExprProxy<T>`. Simple to implement; may produce confusing errors for non-shader vars.
+### Boundaries
 
-2. **Type-aware tracking** — walk the AST and track which identifiers are known to hold `ExprProxy` values (i.e. returned by `vec2`, `sin`, `$.uv`, etc.). Only rewrite those. More accurate but significantly more complex.
+The transform operates inside:
+- `FragmentFn` bodies — detected by type annotation (`const f: FragmentFn = ...`)
+  or call site (`compileFragment(...)`, `createShader({ fragment: ... })`)
+- `fn()` body callbacks — the last argument of any call to the `fn` binding
+  imported from shdr
 
-**Recommendation:** Start with option 1. In practice, fragment callbacks are narrow and flat — they rarely contain non-shader `const` declarations. The type system is a sufficient safety net.
+It does **not** descend into any other nested function — no array method callbacks,
+no plain arrow functions, nothing that isn't typed as `FragmentFn` or `FnContext`.
 
-## Implementation sketch
-
-### 1. Vite plugin shell
+For `fn()` detection specifically, the transform tracks the import binding rather
+than trusting the name alone:
 
 ```ts
-// vite-plugin-shdr.ts
-import type { Plugin } from "vite";
+import { fn } from "./shdr/index.ts";  // ← tracked
+```
 
-export function shdrPlugin(): Plugin {
-  return {
-    name: "vite-plugin-shdr",
-    transform(code, id) {
-      if (!id.endsWith(".ts") && !id.endsWith(".js")) return;
-      if (!code.includes("compileFragment") && !code.includes("createShader"))
-        return;
-      return transformShdrSource(code, id);
-    },
-  };
+Only calls to this specific binding are treated as shader fn bodies, preventing
+false positives on user code that coincidentally names something `fn`.
+
+---
+
+## Phase 2 — Schema-free fn (future)
+
+Eliminate the runtime params array by reading TypeScript interface definitions:
+
+```ts
+// What the user writes
+interface RotArgs { a: Float }
+const rot = fn<RotArgs, Mat2>(([a], { sin, cos, mat2 }) => { ... });
+
+// What the transform emits
+const rot = fn("rot", [Float], Mat2, ([a], { sin, cos, mat2 }) => { ... });
+```
+
+This requires the transform to read a TypeScript interface from the AST and map
+its fields to GLSL type tokens — significantly more complex than Phase 1, which
+is purely syntactic. Deferred until Phase 1 is stable.
+
+---
+
+## Technical design
+
+### The transform is invisible
+
+This is not a code generator or scaffolding tool. The user's source files on disk
+are never modified. Rewrites happen only in Vite's in-memory transform pipeline,
+exactly like the Svelte compiler or Vue `<script setup>`.
+
+### Parser: `oxc-parser` with abstraction layer
+
+`acorn` (Vite's bundled parser) is a non-starter: it does not support TypeScript
+and strips type annotations. Since boundary detection requires reading
+`const fragment: FragmentFn = ...` type annotations, TypeScript parsing is required.
+
+**`oxc-parser` is the default adapter.** Reasons:
+- Already transitively available via Vite 8 → rolldown (no extra install needed)
+- Full TypeScript support via TS-ESTree format
+- Returns static import info directly (`staticImports`) without walking the AST
+- Explicitly designed for use alongside `magic-string` for source rewrites
+- ESTree-compatible AST minimises adapter surface area
+
+**`@babel/parser` is the fallback** for projects on Vite < 8. Both adapters ship
+together behind a thin interface — neither is optional:
+
+```ts
+interface ShdrParser {
+  parse(code: string, id: string): ParsedModule;
+}
+
+interface ParsedModule {
+  importsFrom(pattern: RegExp): ImportedBinding[];
+  arrowFnsTypedAs(typeName: string): FunctionNode[];
+  callsTo(name: string): CallNode[];
+  declarationsIn(node: FunctionNode): Declaration[];
 }
 ```
 
-The early-exit guard (`includes("compileFragment")`) keeps the plugin fast — it only parses files that are plausibly relevant.
+The transform logic is written against `ParsedModule` only. Swapping parsers
+is a one-line change at the plugin entry point.
 
-### 2. Source parsing
+### Source rewriting: `magic-string`
 
-Use `acorn` (already bundled with Vite) or `@babel/parser` to parse the source into an AST. `acorn` is lighter; `@babel/parser` handles more TypeScript edge cases.
+Node `start`/`end` offsets from the AST are used to splice insertions into the
+original source string via `magic-string` (a Vite dependency). This preserves all
+formatting outside rewritten nodes and automatically generates source maps so
+debugger breakpoints point to the original source.
 
-```ts
-import { parse } from "acorn";
+---
 
-const ast = parse(code, { ecmaVersion: 2022, sourceType: "module" });
-```
+## Risks and edge cases
 
-### 3. Finding the callback
+- **Destructuring** — `const { x, y } = someVec` should be ignored, not rewritten.
+  Detect `ObjectPattern`/`ArrayPattern` on the left side and skip.
+- **HMR** — the transform runs on every file change, so HMR works naturally.
+  Verify that the Vite module graph correctly invalidates when shader files change.
+- **Non-shader `const`s inside callbacks** — use `_camelCase` as the escape hatch.
+  The type system catches any accidental wrapping of non-shader values in `$.let`.
 
-Walk the AST for `CallExpression` nodes matching:
-
-- `compileFragment(fn)` — direct call
-- `createShader({ fragment: fn })` — object shorthand or property
-
-Extract the `fn` arrow function or function expression body.
-
-### 4. Rewriting `const` declarations
-
-Walk the callback body. For each `VariableDeclaration` with `kind: "const"`:
-
-```
-const x = <expr>   →   const x = $.let("x", <expr>)
-const X = <expr>   →   const X = $.const("X", <expr>)
-```
-
-Use string manipulation on the original source (via node `start`/`end` offsets) rather than AST-to-code regeneration — simpler and preserves formatting everywhere outside the rewritten nodes. [`magic-string`](https://github.com/Rich-Harris/magic-string) is the standard tool for this (it's a Vite dependency).
-
-### 5. Source maps
-
-`magic-string` generates source maps automatically. Return both `code` and `map` from the transform hook so errors and debugger breakpoints point to the original source.
-
-## Key unknowns / risks
-
-- **Scoping** — `const` declarations inside nested functions, `if` blocks, or loops within the callback need to be excluded or handled carefully. For now, assume callbacks are flat (which is true in practice).
-- **Shared expressions** — if the same `ExprProxy` is assigned to a `const` and used in multiple places, `$.let` emits it as a named variable (referenced multiple times in GLSL). Without `$.let`, it gets inlined at every use site. The transform preserves the "inline once, reference by name" behavior correctly.
-- **Destructuring** — `const { x, y } = someVec` is not a case the transform needs to handle (GLSL structs aren't in scope yet), but should be explicitly ignored rather than accidentally rewritten.
-- **HMR** — Vite's hot module replacement should work naturally since the transform runs on every file change, but worth verifying that the plugin invalidates correctly.
-
-## Relationship to existing code
-
-- `src/shdr/compile.ts` — no changes needed. `$.let` and `$.const` already exist and work correctly. The transform is purely additive.
-- `src/shdr/types.ts` — no changes needed.
-- New file: `vite-plugin-shdr.ts` (or `src/shdr/vite-plugin.ts`)
-- `vite.config.ts` — add `shdrPlugin()` to the plugins array
-
-## Future ideal: schema-free `defn`
-
-The same transform that eliminates `$.let` boilerplate could also eliminate the runtime schema argument from `defn`. Today the intended API is:
-
-```ts
-import { Float, Mat2 } from "./shdr";
-
-const rot = defn("rot", { a: Float }, Mat2, ({ a }) => {
-  return mat2(cos(a), sin(a), sin(a).neg(), cos(a));
-});
-```
-
-`{ a: Float }` (where `Float` is a dual-namespace const/type) must be passed at runtime so the compiler knows the GLSL parameter types. The ideal form would be:
-
-```ts
-interface RotArgs { a: Float }
-
-const rot = defn<RotArgs, Mat2>("rot", ({ a }) => { ... });
-// or, if the name can also be inferred from the binding:
-const rot = defn<RotArgs, Mat2>(({ a }) => { ... });
-```
-
-This is not achievable in pure TypeScript — generic type parameters are erased at runtime, so `defn` cannot inspect `RotArgs` to produce the `{ a: "float" }` schema it needs. The Vite transform would solve this by:
-
-1. Detecting `defn<RotArgs, Mat2>(...)` call sites
-2. Reading the `RotArgs` interface definition from the AST
-3. Injecting the runtime schema: `defn("rot", { a: Float }, Mat2, ...)`
-4. Optionally inferring the name `"rot"` from the `const rot =` binding
-
-This is a natural extension of the implicit naming transform and should be scoped as part of the same plugin implementation.
+---
 
 ## Prior art
 
-- **Svelte compiler** — transforms `$:` reactive statements, `<script setup>` bindings, etc. at build time. Direct conceptual ancestor.
-- **Vue `<script setup>`** — similar: `const x = ref(0)` becomes reactive at compile time via a transform.
-- **SolidJS** — JSX transform injects fine-grained reactivity.
-- **`babel-plugin-macros`** — general pattern for compile-time rewriting of JS.
-
-The pattern is well-established. The shdr transform is simpler than any of the above because the rewrite rule is narrow and mechanical.
+- **Svelte compiler** — the direct conceptual ancestor
+- **Vue `<script setup>`** — same pattern: `const x = ref(0)` becomes reactive at build time
+- **SolidJS** — JSX transform injects fine-grained reactivity
