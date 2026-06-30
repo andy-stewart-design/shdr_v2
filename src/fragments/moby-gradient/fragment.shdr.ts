@@ -31,38 +31,37 @@ export const fragment: FragmentFn = ({
 
   // ── Aspect-correct UV
   const aspectRatio = $.resolution.x.div($.resolution.y);
-  const tuv0 = $.uv.sub(0.5);
+  const centeredUv = $.uv.sub(0.5);
 
   // ── Global rotation driven by noise
-  const degree = noise(
-    vec2($.time.mul(ROTATION_NOISE_SPEED), tuv0.x.mul(tuv0.y)),
+  const rotationNoise = noise(
+    vec2($.time.mul(ROTATION_NOISE_SPEED), centeredUv.x.mul(centeredUv.y)),
   );
-  const angle = radians(
-    degree.sub(0.5).mul(ROTATION_SPREAD_DEG).add(ROTATION_OFFSET_DEG),
+  const rotationAngle = radians(
+    rotationNoise.sub(0.5).mul(ROTATION_SPREAD_DEG).add(ROTATION_OFFSET_DEG),
   );
 
-  // Correct for aspect ratio, rotate, restore — SSA replaces tuv.y *= / tuv *= / tuv.y *=
-  const tuv1 = vec2(tuv0.x, tuv0.y.div(aspectRatio));
-  const tuv2 = rot(angle).mul(tuv1);
-  const tuv3 = vec2(tuv2.x, tuv2.y.mul(aspectRatio));
+  // Correct for aspect ratio, rotate, restore.
+  const aspectUv = vec2(centeredUv.x, centeredUv.y.div(aspectRatio));
+  const rotatedUv = rot(rotationAngle).mul(aspectUv);
+  const correctedUv = vec2(rotatedUv.x, rotatedUv.y.mul(aspectRatio));
 
-  // ── Wave distortion — SSA replaces tuv.x += / tuv.y +=
-  const speed = $.time.mul(WAVE_SPEED);
-  const tuv4 = vec2(
-    tuv3.x.add(sin(tuv3.y.mul(WAVE_FREQUENCY).add(speed)).div(WAVE_AMPLITUDE)),
-    tuv3.y.add(
-      sin(tuv3.x.mul(WAVE_FREQUENCY).mul(WAVE_Y_FREQ_SCALE).add(speed)).div(
-        WAVE_AMPLITUDE.mul(WAVE_Y_AMPL_SCALE),
-      ),
-    ),
+  // ── Wave distortion
+  const waveTime = $.time.mul(WAVE_SPEED);
+  const xWave = sin(correctedUv.y.mul(WAVE_FREQUENCY).add(waveTime)).div(
+    WAVE_AMPLITUDE,
   );
+  const yWave = sin(
+    correctedUv.x.mul(WAVE_FREQUENCY).mul(WAVE_Y_FREQ_SCALE).add(waveTime),
+  ).div(WAVE_AMPLITUDE.mul(WAVE_Y_AMPL_SCALE));
+  const warpedUv = vec2(correctedUv.x.add(xWave), correctedUv.y.add(yWave));
 
   // ── Layer blending with a shared slight rotation
   const layerRot = rot(radians(LAYER_ROTATION_DEG));
-  const layerBlend = smoothstep(-0.3, 0.2, tuv4.mul(layerRot).x);
+  const layerBlend = smoothstep(-0.3, 0.2, warpedUv.mul(layerRot).x);
   const layer1 = mix(COLOR_ORANGE, COLOR_BLUE, layerBlend);
   const layer2 = mix(COLOR_YELLOW, COLOR_GREEN, layerBlend);
-  const color = mix(layer1, layer2, smoothstep(0.5, -0.3, tuv4.y));
+  const color = mix(layer1, layer2, smoothstep(0.5, -0.3, warpedUv.y));
 
   // ── Film grain — static (no u_time), baked into the gradient
   const grain = filmGrain($.uv);
