@@ -34,7 +34,9 @@ export const fragment: FragmentFn = ({
   const tuv0 = $.uv.sub(0.5);
 
   // ── Global rotation driven by noise
-  const degree = noise(vec2($.time.mul(ROTATION_NOISE_SPEED), tuv0.x.mul(tuv0.y)));
+  const degree = noise(
+    vec2($.time.mul(ROTATION_NOISE_SPEED), tuv0.x.mul(tuv0.y)),
+  );
   const angle = radians(
     degree.sub(0.5).mul(ROTATION_SPREAD_DEG).add(ROTATION_OFFSET_DEG),
   );
@@ -47,9 +49,7 @@ export const fragment: FragmentFn = ({
   // ── Wave distortion — SSA replaces tuv.x += / tuv.y +=
   const speed = $.time.mul(WAVE_SPEED);
   const tuv4 = vec2(
-    tuv3.x.add(
-      sin(tuv3.y.mul(WAVE_FREQUENCY).add(speed)).div(WAVE_AMPLITUDE),
-    ),
+    tuv3.x.add(sin(tuv3.y.mul(WAVE_FREQUENCY).add(speed)).div(WAVE_AMPLITUDE)),
     tuv3.y.add(
       sin(tuv3.x.mul(WAVE_FREQUENCY).mul(WAVE_Y_FREQ_SCALE).add(speed)).div(
         WAVE_AMPLITUDE.mul(WAVE_Y_AMPL_SCALE),
