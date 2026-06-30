@@ -2,6 +2,28 @@
 
 This is a revised, MVP-focused version of the implicit naming transform plan. It keeps the core ergonomics from the PRD, but reduces implementation risk by narrowing the first pass to one parser, one transform path, and explicit fallback behavior.
 
+## Implementation status
+
+Implemented.
+
+The MVP transform now runs only for `*.shdr.ts` / `*.shdr.tsx` files and all current sketches have been migrated to the `fragment.shdr.ts` + `index.ts` layout:
+
+- `ben-day-spotlight`
+- `pixelation`
+- `moby-gradient`
+- `circles`
+- `horizon-burn`
+
+Additional implementation details that landed during migration:
+
+- explicit `$.let(value)` / `$.const(value)` calls get name inference
+- nameless `fn(...)` calls typecheck in source and are named by the transform
+- `fn()` body declarations use `ctx.$.let(...)` when the context arg is an identifier
+- destructured `fn()` context params get `$` injected when needed
+- `.shdr.ts` is the opt-in boundary for non-standard TypeScript semantics
+- `float(...)` was added as a convenience constructor for promoting JS numbers to shader float expressions
+
+
 ## Goal
 
 Let shader authors write normal-looking TypeScript inside shader callbacks:
@@ -170,7 +192,7 @@ Register in `vite.config.ts`.
 ### Verify
 
 - Dev server starts.
-- No-op transform runs for `.ts` shader files.
+- No-op transform runs for `.shdr.ts` shader files.
 - `pnpm check` passes.
 
 ---
@@ -202,9 +224,9 @@ Also create a tiny AST walker utility rather than introducing a large traversal 
 
 Run a temporary script or unit-style debug function against:
 
-- `src/fragments/ben-day-spotlight/index.ts`
-- `src/fragments/moby-gradient/utils.ts`
-- `src/fragments/pixelation/index.ts`
+- `src/fragments/ben-day-spotlight/fragment.shdr.ts`
+- `src/fragments/moby-gradient/utils.shdr.ts`
+- `src/fragments/pixelation/fragment.shdr.ts`
 
 Confirm the parser returns usable `start`/`end` offsets for declarations and call expressions.
 
@@ -328,7 +350,7 @@ Against `ben-day-spotlight`:
 - `_foo` if manually added → skipped
 - `const { dpi } = $.u` → skipped because destructuring
 
-Against `moby-gradient/utils.ts`:
+Against `moby-gradient/utils.shdr.ts`:
 
 - `s` and `c` inside `rot` → fn local let candidates
 - screaming names inside fn body → skipped/untouched
@@ -491,7 +513,7 @@ Do not migrate all shaders yet.
 Migrate a small part of:
 
 ```txt
-src/fragments/moby-gradient/utils.ts
+src/fragments/moby-gradient/utils.shdr.ts
 ```
 
 Suggested first change:
@@ -521,8 +543,8 @@ Suggested order:
 
 1. `ben-day-spotlight`
 2. `pixelation`
-3. `moby-gradient/utils.ts`
-4. `moby-gradient/index.ts`
+3. `moby-gradient/utils.shdr.ts`
+4. `moby-gradient/fragment.shdr.ts`
 5. `circles`
 6. `horizon-burn`
 
