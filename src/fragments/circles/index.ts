@@ -12,7 +12,7 @@ export const fragment: FragmentFn = (ctx) => {
 
   let xy = $.let(
     "xy",
-    $.fragCoord.mul(2.0).sub($.resolution).div($.resolution.y),
+    $.coord.mul(2.0).sub($.resolution).div($.resolution.y),
   );
   let C = $.let("C", vec2(0.0));
   let distFromCenter = $.let("distFromCenter", length(xy.sub(C)));

@@ -245,5 +245,5 @@ export type ShaderContext<U extends UniformMap = UniformMap> = {
   readonly mouse: ExprProxy<"vec2">;
   /** Raw fragment pixel coordinates — gl_FragCoord.xy. Ranges from (0,0) to (width,height).
    *  For normalized [0,1] UV coords use $.uv instead. */
-  readonly fragCoord: ExprProxy<"vec2">;
+  readonly coord: ExprProxy<"vec2">;
 };

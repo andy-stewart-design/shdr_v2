@@ -90,7 +90,7 @@ const RESERVED_UNIFORM_KEYS = new Set([
   "time",
   "resolution",
   "mouse",
-  "fragCoord",
+  "coord",
   "uv",
   "u",
 ]);

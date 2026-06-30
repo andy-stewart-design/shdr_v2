@@ -23,7 +23,7 @@ export const fragment: FragmentFn<typeof uniforms> = ({
   const { dpi } = $.u;
 
   // Normalize coordinate space.
-  const uv0 = $.fragCoord.div($.resolution);
+  const uv0 = $.coord.div($.resolution);
 
   // Use center coordinates if mouse has not moved yet, without branching.
   const mouse0 = mix(
