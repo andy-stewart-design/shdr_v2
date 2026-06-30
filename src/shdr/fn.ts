@@ -149,7 +149,15 @@ function makeLocalContext(statements: FnBodyStatement[]): LocalContext {
 // the destructuring pattern.
 // ---------------------------------------------------------------------------
 
-// Array form — put first so TS resolves it before the object form
+// Nameless array form — intended for .shdr.ts files where the Vite transform
+// rewrites `const rot = fn([Float], ...)` to `fn("rot", [Float], ...)`.
+export function fn<T extends readonly GlslType[], R extends GlslType>(
+  params: readonly [...T],
+  returnType: R,
+  body: (args: TupleToExprs<T>, ctx: FnContext) => ExprProxy<R>,
+): TupleShaderFn<T, R>;
+
+// Named array form — works without the transform.
 export function fn<T extends readonly GlslType[], R extends GlslType>(
   name: string,
   params: readonly [...T],
@@ -157,7 +165,15 @@ export function fn<T extends readonly GlslType[], R extends GlslType>(
   body: (args: TupleToExprs<T>, ctx: FnContext) => ExprProxy<R>,
 ): TupleShaderFn<T, R>;
 
-// Object form
+// Nameless object form — intended for .shdr.ts files where the Vite transform
+// injects the binding name.
+export function fn<S extends Record<string, GlslType>, R extends GlslType>(
+  params: S,
+  returnType: R,
+  body: (args: ParamsToExprs<S>, ctx: FnContext) => ExprProxy<R>,
+): ShaderFn<S, R>;
+
+// Named object form — works without the transform.
 export function fn<S extends Record<string, GlslType>, R extends GlslType>(
   name: string,
   params: S,
@@ -165,13 +181,27 @@ export function fn<S extends Record<string, GlslType>, R extends GlslType>(
   body: (args: ParamsToExprs<S>, ctx: FnContext) => ExprProxy<R>,
 ): ShaderFn<S, R>;
 
-// Implementation — body typed as (...args: any[]) => ... to satisfy both overloads
+// Implementation — body typed as (...args: any[]) => ... to satisfy all overloads
 export function fn<R extends GlslType>(
-  name: string,
-  params: ReadonlyArray<GlslType> | Record<string, GlslType>,
-  returnType: R,
-  body: (...args: any[]) => ExprProxy<R>, // eslint-disable-line @typescript-eslint/no-explicit-any
+  nameOrParams: string | ReadonlyArray<GlslType> | Record<string, GlslType>,
+  paramsOrReturnType: ReadonlyArray<GlslType> | Record<string, GlslType> | R,
+  returnTypeOrBody: R | ((...args: any[]) => ExprProxy<R>), // eslint-disable-line @typescript-eslint/no-explicit-any
+  maybeBody?: (...args: any[]) => ExprProxy<R>, // eslint-disable-line @typescript-eslint/no-explicit-any
 ): unknown {
+  if (typeof nameOrParams !== "string") {
+    throw new Error(
+      "Nameless fn(...) calls must be compiled by the shdr Vite transform. " +
+        "Use a .shdr.ts file or pass an explicit name string.",
+    );
+  }
+
+  const name = nameOrParams;
+  const params = paramsOrReturnType as
+    | ReadonlyArray<GlslType>
+    | Record<string, GlslType>;
+  const returnType = returnTypeOrBody as R;
+  const body = maybeBody!;
+
   const statements: FnBodyStatement[] = [];
   const local$ = makeLocalContext(statements);
 
