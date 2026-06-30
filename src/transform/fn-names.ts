@@ -1,5 +1,5 @@
 import type { ShdrImportBindings } from "./imports.ts";
-import type { AnyNode } from "./walk.ts";
+import { walk, type AnyNode } from "./walk.ts";
 
 export type FnNameEdit = {
   name: string;
@@ -28,32 +28,25 @@ export function collectFnNameEdits(
   imports: ShdrImportBindings,
 ): FnNameEdit[] {
   const edits: FnNameEdit[] = [];
-  const body = Array.isArray(program.body) ? program.body : [];
 
-  for (const rawStmt of body) {
-    const stmt = rawStmt as AnyNode;
-    const declaration =
-      stmt.type === "ExportNamedDeclaration" && stmt.declaration
-        ? (stmt.declaration as AnyNode)
-        : stmt;
-    if (declaration.type !== "VariableDeclaration") continue;
-    const declarators = Array.isArray(declaration.declarations)
-      ? declaration.declarations
-      : [];
-    if (declarators.length !== 1) continue;
-    const declarator = declarators[0] as AnyNode;
-    const name = identifierName(declarator.id);
-    const init = declarator.init as AnyNode | undefined;
-    if (!name || init?.type !== "CallExpression") continue;
-    if (!imports.fnNames.has(identifierName(init.callee) ?? "")) continue;
+  // Walk the full tree rather than just top-level statements so fn()
+  // definitions nested inside blocks or re-exported via barrels are caught.
+  // VariableDeclarator has both id (the binding name) and init (the fn() call)
+  // in one place, making it the right node to match against.
+  walk(program, (node) => {
+    if (node.type !== "VariableDeclarator") return;
+    const name = identifierName(node.id);
+    const init = node.init as AnyNode | undefined;
+    if (!name || init?.type !== "CallExpression") return;
+    if (!imports.fnNames.has(identifierName(init.callee) ?? "")) return;
     const args = (init.arguments as unknown[]) ?? [];
-    if (isStringLiteral(args[0])) continue;
-    if (typeof init.start !== "number") continue;
+    if (isStringLiteral(args[0])) return;
+    if (typeof init.start !== "number") return;
     edits.push({
       name,
       insertPos: init.start + `${identifierName(init.callee)}(`.length,
     });
-  }
+  });
 
   return edits;
 }
