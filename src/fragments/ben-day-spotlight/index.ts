@@ -2,6 +2,8 @@ import { uniform, type FragmentFn } from "../../shdr/index.ts";
 
 export const uniforms = {
   dpi: uniform.float(12),
+  spread: uniform.float(0.625),
+  blur: uniform.float(0),
 };
 
 export const fragment: FragmentFn<typeof uniforms> = ({
@@ -19,11 +21,6 @@ export const fragment: FragmentFn<typeof uniforms> = ({
   max,
 }) => {
   const { dpi } = $.u;
-  const SPREAD_FACTOR = $.const(0.625);
-  const SPREAD_AMOUNT = $.const(
-    SPREAD_FACTOR.neg().add(1.0).mul(2.5).add(0.5),
-  );
-  const BLUR_AMOUNT = 0.0;
 
   // Normalize coordinate space.
   const uv0 = $.fragCoord.div($.resolution);
@@ -54,11 +51,12 @@ export const fragment: FragmentFn<typeof uniforms> = ({
 
   // Distance from each cell center to the mouse spotlight.
   const distFromMouse = length(cellCenter.sub(mouse));
-  const darkFactor = min(distFromMouse.mul(SPREAD_AMOUNT), 1.0);
+  const spreadAmount = $.u.spread.neg().add(1.0).mul(2.5).add(0.5);
+  const darkFactor = min(distFromMouse.mul(spreadAmount), 1.0);
 
   // Grid parameters. modulateSize was statically 1 in the source shader, so
   // the ternary simplifies to `1.0 - distFromMouse`.
-  const blur = max(0.025, distFromMouse.mul(BLUR_AMOUNT));
+  const blur = max(0.025, distFromMouse.mul($.u.blur));
   const rad = distFromMouse.neg().add(1.0);
 
   // Create a grid of circles.
