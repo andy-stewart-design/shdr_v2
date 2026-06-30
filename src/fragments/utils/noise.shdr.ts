@@ -1,17 +1,5 @@
-import { fn, Float, Vec2, Mat2 } from "../../shdr/index.ts";
-
-export const rot = fn([Float], Mat2, ([a], { sin, cos, mat2 }) => {
-  const s = sin(a);
-  const c = cos(a);
-  return mat2(c, s.neg(), s, c);
-});
-
-export const hash = fn([Vec2], Vec2, ([p], ctx) => {
-  const { vec2, dot, fract, sin } = ctx;
-
-  const q = vec2(dot(p, vec2(2127.1, 81.17)), dot(p, vec2(1269.5, 283.37)));
-  return fract(sin(q).mul(43758.5453));
-});
+import { fn, Float, Vec2 } from "../../shdr/index.ts";
+import { hash } from "./hash.shdr.ts";
 
 export const noise = fn([Vec2], Float, ([p], ctx) => {
   const { floor, fract, vec2, mix, dot } = ctx;
@@ -39,9 +27,3 @@ export const noise = fn([Vec2], Float, ([p], ctx) => {
     .mul(0.5)
     .add(0.5);
 });
-
-// Intentionally has no u_time dependency — produces a static grain texture
-// baked into the gradient rather than flickering on every frame.
-export const filmGrain = fn([Vec2], Float, ([uv], { length }) =>
-  length(hash(uv)),
-);
