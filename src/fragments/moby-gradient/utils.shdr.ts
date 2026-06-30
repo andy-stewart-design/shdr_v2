@@ -14,11 +14,11 @@ export const hash = fn("hash", [Vec2], Vec2, ([p], ctx) => {
 });
 
 export const noise = fn("noise", [Vec2], Float, ([p], ctx) => {
-  const { $, floor, fract, vec2, mix, dot } = ctx;
+  const { floor, fract, vec2, mix, dot } = ctx;
 
-  const i = $.let("i", floor(p));
-  const f = $.let("f", fract(p));
-  const u = $.let("u", f.mul(f).mul(f.mul(2.0).sub(3.0).neg()));
+  const i = floor(p);
+  const f = fract(p);
+  const u = f.mul(f).mul(f.mul(2.0).sub(3.0).neg());
 
   const v00 = vec2(0.0, 0.0);
   const v10 = vec2(1.0, 0.0);
