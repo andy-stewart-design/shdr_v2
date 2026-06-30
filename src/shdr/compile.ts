@@ -1,5 +1,6 @@
 import { refProxy, toNode, glslTypeOf, compileExpr } from "./ast.ts";
 import {
+  float,
   vec2,
   vec3,
   vec4,
@@ -160,6 +161,7 @@ export function compileFn(shaderFn: { readonly _def: FnDef }): string {
 // ---------------------------------------------------------------------------
 
 export type Builtins = {
+  float: typeof float;
   vec2: typeof vec2;
   vec3: typeof vec3;
   vec4: typeof vec4;
@@ -304,6 +306,7 @@ export function compileFragment<U extends UniformMap = UniformMap>(
 
   fn({
     $,
+    float,
     vec2,
     vec3,
     vec4,

@@ -39,6 +39,7 @@ export type { FnContext } from "./fn.ts";
 
 // Builtins re-exported for direct use with compileFragment
 export {
+  float,
   vec2,
   vec3,
   vec4,

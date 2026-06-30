@@ -1,6 +1,7 @@
 import { NODE, makeProxy, refProxy, toNode, glslTypeOf } from "./ast.ts";
 import { compileFn } from "./compile.ts";
 import {
+  float,
   vec2,
   vec3,
   vec4,
@@ -66,6 +67,7 @@ export type LocalContext = {
 
 // Bundled builtins — same set available in compileFragment callbacks
 const fnBuiltins = {
+  float,
   vec2,
   vec3,
   vec4,

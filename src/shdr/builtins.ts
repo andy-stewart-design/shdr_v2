@@ -4,8 +4,12 @@ import type { Expr, ExprProxy, GlslType } from "./types.ts";
 type FloatArg = Expr<"float"> | number;
 
 // ---------------------------------------------------------------------------
-// Vector constructors
+// Scalar / vector constructors
 // ---------------------------------------------------------------------------
+
+export function float(x: FloatArg): ExprProxy<"float"> {
+  return makeCall("float", [x], "float");
+}
 
 export function vec2(x: FloatArg, y: FloatArg): ExprProxy<"vec2">;
 export function vec2(xy: FloatArg): ExprProxy<"vec2">;
