@@ -288,7 +288,7 @@ export function compileFragment<U extends UniformMap = UniformMap>(
       },
     }) as ShaderContext<U>["u"],
     get uv(): ExprProxy<"vec2"> {
-      return refProxy(["__shdr_uv"], "vec2");
+      return refProxy(["shdr_uv"], "vec2");
     },
     get time(): ExprProxy<"float"> {
       return refProxy(["u_time"], "float");
@@ -359,7 +359,7 @@ export function compileFragment<U extends UniformMap = UniformMap>(
     ...fnDefs.map((d) => compileFnDef(d)),
     "",
     "void main() {",
-    "  vec2 __shdr_uv = gl_FragCoord.xy / u_resolution.xy;",
+    "  vec2 shdr_uv = gl_FragCoord.xy / u_resolution.xy;",
     ...statements.map((stmt) => {
       if (stmt.type === "let")
         return `  ${glslKeyword[stmt.varType]} ${stmt.name} = ${compileExpr(stmt.value)};`;
