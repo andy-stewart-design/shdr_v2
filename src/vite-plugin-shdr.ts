@@ -6,7 +6,7 @@ export function shdrPlugin(): Plugin {
     name: "shdr-transform",
     enforce: "pre",
     transform(code, id) {
-      if (!id.endsWith(".ts") && !id.endsWith(".tsx")) return null;
+      if (!/\.shdr\.tsx?$/.test(id)) return null;
       return transformShdrSource(code, id);
     },
   };

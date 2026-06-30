@@ -113,6 +113,26 @@ This should be documented clearly because it is the main semantic rule users nee
 
 ---
 
+## File opt-in convention
+
+Implicit naming changes normal TypeScript semantics, so the transform should only run for files explicitly marked as shader-transform files:
+
+```txt
+*.shdr.ts
+*.shdr.tsx
+```
+
+Recommended layout:
+
+```txt
+fragment.shdr.ts  # transformed shader DSL code
+index.ts          # normal TS barrel/setup file
+```
+
+Explicit DSL style continues to work in normal `.ts` files, but implicit declaration rewriting requires the `.shdr.ts` suffix.
+
+---
+
 ## Step 1 — Install dependencies and scaffold Vite plugin
 
 ### Work
@@ -138,7 +158,7 @@ export function shdrPlugin() {
     name: "shdr-transform",
     enforce: "pre" as const,
     transform(code: string, id: string) {
-      if (!id.endsWith(".ts") && !id.endsWith(".tsx")) return null;
+      if (!/\.shdr\.tsx?$/.test(id)) return null;
       return transformShdrSource(code, id);
     },
   };
@@ -445,12 +465,12 @@ If no edits were made, return `null`.
 
 ### Work
 
-Pick one simple fragment and migrate it to implicit style.
+Pick one simple fragment and migrate it to implicit style in a `.shdr.ts` file.
 
 Suggested first target:
 
 ```txt
-src/fragments/ben-day-spotlight/index.ts
+src/fragments/ben-day-spotlight/fragment.shdr.ts
 ```
 
 Do not migrate all shaders yet.
