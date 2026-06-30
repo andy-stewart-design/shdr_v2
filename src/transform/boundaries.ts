@@ -1,9 +1,15 @@
 import type { ShdrImportBindings } from "./imports.ts";
 import { walk, type AnyNode } from "./walk.ts";
 
+export type ContextParamEdit = {
+  insertPos: number;
+};
+
 export type TransformBoundary = {
   kind: "fragment" | "fn-body";
   node: AnyNode;
+  contextRef: string;
+  contextParamEdit?: ContextParamEdit;
 };
 
 function unwrapExport(node: AnyNode): AnyNode {
@@ -13,8 +19,10 @@ function unwrapExport(node: AnyNode): AnyNode {
 }
 
 function identifierName(node: unknown): string | null {
-  return node && typeof node === "object" && typeof (node as { name?: unknown }).name === "string"
-    ? ((node as { name: string }).name)
+  return node &&
+    typeof node === "object" &&
+    typeof (node as { name?: unknown }).name === "string"
+    ? (node as { name: string }).name
     : null;
 }
 
@@ -38,10 +46,46 @@ function isObjectProperty(node: AnyNode, name: string): boolean {
 function functionFromExpression(node: unknown): AnyNode | null {
   if (!node || typeof node !== "object") return null;
   const n = node as AnyNode;
-  return n.type === "ArrowFunctionExpression" || n.type === "FunctionExpression" ? n : null;
+  return n.type === "ArrowFunctionExpression" || n.type === "FunctionExpression"
+    ? n
+    : null;
 }
 
-function findFragmentBoundaries(program: AnyNode, imports: ShdrImportBindings): TransformBoundary[] {
+function fragmentBoundary(fn: AnyNode): TransformBoundary {
+  return { kind: "fragment", node: fn, contextRef: "$" };
+}
+
+function fnBodyBoundary(fn: AnyNode): TransformBoundary {
+  const params = (fn.params as unknown[]) ?? [];
+  const ctxParam = params[1] as AnyNode | undefined;
+
+  if (ctxParam?.type === "Identifier" && typeof ctxParam.name === "string") {
+    return { kind: "fn-body", node: fn, contextRef: `${ctxParam.name}.$` };
+  }
+
+  if (ctxParam?.type === "ObjectPattern") {
+    const properties = (ctxParam.properties as unknown[]) ?? [];
+    const hasDollar = properties.some(
+      (prop) => (prop as AnyNode).type === "Property" && identifierName((prop as AnyNode).key) === "$",
+    );
+    return {
+      kind: "fn-body",
+      node: fn,
+      contextRef: "$",
+      contextParamEdit:
+        !hasDollar && typeof ctxParam.start === "number"
+          ? { insertPos: ctxParam.start + 1 }
+          : undefined,
+    };
+  }
+
+  return { kind: "fn-body", node: fn, contextRef: "$" };
+}
+
+function findFragmentBoundaries(
+  program: AnyNode,
+  imports: ShdrImportBindings,
+): TransformBoundary[] {
   const boundaries: TransformBoundary[] = [];
   const body = Array.isArray(program.body) ? program.body : [];
 
@@ -57,7 +101,7 @@ function findFragmentBoundaries(program: AnyNode, imports: ShdrImportBindings): 
       const typeName = typeReferenceName(id.typeAnnotation);
       if (typeName && imports.fragmentFnNames.has(typeName)) {
         const fn = functionFromExpression(d.init);
-        if (fn) boundaries.push({ kind: "fragment", node: fn });
+        if (fn) boundaries.push(fragmentBoundary(fn));
       }
     }
   }
@@ -65,7 +109,7 @@ function findFragmentBoundaries(program: AnyNode, imports: ShdrImportBindings): 
   walk(program, (node) => {
     if (isCallTo(node, imports.compileFragmentNames)) {
       const fn = functionFromExpression((node.arguments as unknown[])?.[0]);
-      if (fn) boundaries.push({ kind: "fragment", node: fn });
+      if (fn) boundaries.push(fragmentBoundary(fn));
     }
     if (isCallTo(node, imports.createShaderNames)) {
       const arg = (node.arguments as unknown[])?.[0] as AnyNode | undefined;
@@ -74,7 +118,7 @@ function findFragmentBoundaries(program: AnyNode, imports: ShdrImportBindings): 
         const p = prop as AnyNode;
         if (isObjectProperty(p, "fragment")) {
           const fn = functionFromExpression(p.value);
-          if (fn) boundaries.push({ kind: "fragment", node: fn });
+          if (fn) boundaries.push(fragmentBoundary(fn));
         }
       }
     }
@@ -83,20 +127,29 @@ function findFragmentBoundaries(program: AnyNode, imports: ShdrImportBindings): 
   return boundaries;
 }
 
-function findFnBodyBoundaries(program: AnyNode, imports: ShdrImportBindings): TransformBoundary[] {
+function findFnBodyBoundaries(
+  program: AnyNode,
+  imports: ShdrImportBindings,
+): TransformBoundary[] {
   const boundaries: TransformBoundary[] = [];
   walk(program, (node) => {
     if (!isCallTo(node, imports.fnNames)) return;
     const args = (node.arguments as unknown[]) ?? [];
     const fn = functionFromExpression(args[args.length - 1]);
-    if (fn) boundaries.push({ kind: "fn-body", node: fn });
+    if (fn) boundaries.push(fnBodyBoundary(fn));
   });
   return boundaries;
 }
 
-export function findTransformBoundaries(program: AnyNode, imports: ShdrImportBindings): TransformBoundary[] {
+export function findTransformBoundaries(
+  program: AnyNode,
+  imports: ShdrImportBindings,
+): TransformBoundary[] {
   const seen = new Set<AnyNode>();
-  const boundaries = [...findFragmentBoundaries(program, imports), ...findFnBodyBoundaries(program, imports)];
+  const boundaries = [
+    ...findFragmentBoundaries(program, imports),
+    ...findFnBodyBoundaries(program, imports),
+  ];
   return boundaries.filter((b) => {
     if (seen.has(b.node)) return false;
     seen.add(b.node);

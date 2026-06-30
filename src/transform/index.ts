@@ -37,6 +37,9 @@ export function transformShdrSource(code: string, id: string) {
   const edits: RewriteEdit[] = [];
 
   for (const boundary of boundaries) {
+    if (boundary.contextParamEdit) {
+      edits.push({ type: "context-param", edit: boundary.contextParamEdit });
+    }
     for (const declaration of collectTransformDeclarations(boundary)) {
       edits.push({ type: "wrap", declaration });
     }

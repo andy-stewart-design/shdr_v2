@@ -1,23 +1,20 @@
 import { fn, Float, Vec2, Mat2 } from "../../shdr/index.ts";
 
-export const rot = fn([Float], Mat2, ([a], { $, sin, cos, mat2 }) => {
-  void $;
+export const rot = fn([Float], Mat2, ([a], { sin, cos, mat2 }) => {
   const s = sin(a);
   const c = cos(a);
   return mat2(c, s.neg(), s, c);
 });
 
 export const hash = fn([Vec2], Vec2, ([p], ctx) => {
-  const { $, vec2, dot, fract, sin } = ctx;
-  void $;
+  const { vec2, dot, fract, sin } = ctx;
 
   const q = vec2(dot(p, vec2(2127.1, 81.17)), dot(p, vec2(1269.5, 283.37)));
   return fract(sin(q).mul(43758.5453));
 });
 
 export const noise = fn([Vec2], Float, ([p], ctx) => {
-  const { $, floor, fract, vec2, mix, dot } = ctx;
-  void $;
+  const { floor, fract, vec2, mix, dot } = ctx;
 
   const i = floor(p);
   const f = fract(p);

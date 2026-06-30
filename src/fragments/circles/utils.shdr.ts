@@ -4,8 +4,7 @@ import { TAU, EP, SPACING_FACTOR } from "./constants.ts";
 // ── Helper functions ──────────────────────────────────────────────────────────
 
 const hue = fn([Vec3], Vec3, ([c], ctx) => {
-  const { $, vec3, mod, abs, smoothstep } = ctx;
-  void $;
+  const { vec3, mod, abs, smoothstep } = ctx;
 
   const shifted = vec3(0, 4, 2).add(c.x.mul(6.0));
   const wrapped = mod(shifted, 6.0);
@@ -20,8 +19,7 @@ const circArgs = [Vec2, Vec2, Float, Float, Float] as const;
 
 const circle = fn(circArgs, Float, (args, ctx) => {
   const [xy, c, r, fill, resY] = args;
-  const { $, mix, abs, smoothstep, length, div, sub } = ctx;
-  void $;
+  const { mix, abs, smoothstep, length, div, sub } = ctx;
 
   const dist = length(xy.sub(c)).sub(r);
   const edgeDist = mix(abs(dist), dist, fill);
@@ -43,9 +41,8 @@ export const circles = fn(
   Vec3,
   (
     args,
-    { $, vec2, vec3, sin, cos, mat2, asin, atan, floor, fract, abs, add, div },
+    { vec2, vec3, sin, cos, mat2, asin, atan, floor, fract, abs, add, div },
   ) => {
-    void $;
     const { xy, C, R, r, ph, resY } = args;
 
     const t = asin(r.div(R.add(r))).mul(2.0 * SPACING_FACTOR);

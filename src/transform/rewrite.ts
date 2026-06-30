@@ -1,11 +1,13 @@
 import MagicString from "magic-string";
 import type { ExplicitNameEdit, TransformDeclaration } from "./declarations.ts";
+import type { ContextParamEdit } from "./boundaries.ts";
 import type { FnNameEdit } from "./fn-names.ts";
 
 export type RewriteEdit =
   | { type: "wrap"; declaration: TransformDeclaration }
   | { type: "fn-name"; edit: FnNameEdit }
-  | { type: "explicit-name"; edit: ExplicitNameEdit };
+  | { type: "explicit-name"; edit: ExplicitNameEdit }
+  | { type: "context-param"; edit: ContextParamEdit };
 
 function rangesOverlap(aStart: number, aEnd: number, bStart: number, bEnd: number): boolean {
   return aStart < bEnd && bStart < aEnd;
@@ -33,9 +35,16 @@ export function applyRewriteEdits(code: string, edits: RewriteEdit[], id: string
   const s = new MagicString(code);
   for (const edit of accepted) {
     if (edit.type === "wrap") {
-      const { name, kind, initStart, initEnd } = edit.declaration;
-      s.prependLeft(initStart, kind === "const" ? `$.const("${name}", ` : `$.let("${name}", `);
+      const { name, kind, contextRef, initStart, initEnd } = edit.declaration;
+      s.prependLeft(
+        initStart,
+        kind === "const"
+          ? `${contextRef}.const("${name}", `
+          : `${contextRef}.let("${name}", `,
+      );
       s.appendRight(initEnd, ")");
+    } else if (edit.type === "context-param") {
+      s.appendLeft(edit.edit.insertPos, "$, ");
     } else {
       s.appendLeft(edit.edit.insertPos, `"${edit.edit.name}", `);
     }

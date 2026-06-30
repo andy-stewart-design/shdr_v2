@@ -6,6 +6,7 @@ export type DeclarationKind = "let" | "const";
 export type TransformDeclaration = {
   name: string;
   kind: DeclarationKind;
+  contextRef: string;
   initStart: number;
   initEnd: number;
 };
@@ -103,7 +104,13 @@ export function collectTransformDeclarations(boundary: TransformBoundary): Trans
     const kind = classifyName(name, boundary.kind);
     if (!kind) continue;
 
-    declarations.push({ name, kind, initStart: init.start, initEnd: init.end });
+    declarations.push({
+      name,
+      kind,
+      contextRef: boundary.contextRef,
+      initStart: init.start,
+      initEnd: init.end,
+    });
   }
 
   return declarations;
