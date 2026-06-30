@@ -23,7 +23,6 @@ Additional implementation details that landed during migration:
 - `.shdr.ts` is the opt-in boundary for non-standard TypeScript semantics
 - `float(...)` was added as a convenience constructor for promoting JS numbers to shader float expressions
 
-
 ## Goal
 
 Let shader authors write normal-looking TypeScript inside shader callbacks:

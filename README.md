@@ -41,12 +41,12 @@ The compiler emits GLSL ES 3.00 and the runtime uses WebGL2.
 Inside a fragment, `$` exposes built-in shader values:
 
 ```ts
-$.time        // float, seconds
-$.resolution  // vec2, physical canvas size
-$.mouse       // vec2, physical pixel mouse position
-$.coord       // vec2, raw gl_FragCoord.xy
-$.uv          // vec2, normalized coordinate in [0, 1]
-$.u           // custom uniforms
+$.time; // float, seconds
+$.resolution; // vec2, physical canvas size
+$.mouse; // vec2, physical pixel mouse position
+$.coord; // vec2, raw gl_FragCoord.xy
+$.uv; // vec2, normalized coordinate in [0, 1]
+$.u; // custom uniforms
 ```
 
 `$.fragCoord` was intentionally replaced by `$.coord`.
@@ -90,18 +90,18 @@ shader.uniforms.pixelation.set(24);
 Supported uniform helpers:
 
 ```ts
-uniform.float(1)
-uniform.vec2([1, 2])
-uniform.vec3([1, 2, 3])
-uniform.vec4([1, 2, 3, 4])
-uniform.texture2D("/image.jpg")
+uniform.float(1);
+uniform.vec2([1, 2]);
+uniform.vec3([1, 2, 3]);
+uniform.vec4([1, 2, 3, 4]);
+uniform.texture2D("/image.jpg");
 ```
 
 Texture uniforms expose both the sampler and resolution:
 
 ```ts
-texture($.u.texture, $.uv)      // samples u_texture
-$.u.textureResolution           // vec2, u_texture_resolution
+texture($.u.texture, $.uv); // samples u_texture
+$.u.textureResolution; // vec2, u_texture_resolution
 ```
 
 `uniform.texture2D(...)` accepts URL strings and local `File` / `Blob` values.
@@ -149,20 +149,20 @@ const rot = fn("rot", [Float], Mat2, body);
 
 Naming rules:
 
-| Source declaration | Transform behavior |
-| --- | --- |
-| `camelCase` | `$.let("camelCase", expr)` |
-| `SCREAMING_CASE` in fragments | `$.const("SCREAMING_CASE", expr)` |
-| `SCREAMING_CASE` in `fn()` bodies | left inline |
-| `_prefixed` | untouched escape hatch |
-| destructuring | untouched |
-| multiple declarators | untouched |
+| Source declaration                | Transform behavior                |
+| --------------------------------- | --------------------------------- |
+| `camelCase`                       | `$.let("camelCase", expr)`        |
+| `SCREAMING_CASE` in fragments     | `$.const("SCREAMING_CASE", expr)` |
+| `SCREAMING_CASE` in `fn()` bodies | left inline                       |
+| `_prefixed`                       | untouched escape hatch            |
+| destructuring                     | untouched                         |
+| multiple declarators              | untouched                         |
 
 Explicit style is still valid and can be mixed in:
 
 ```ts
-const factor = $.let(0.625);       // transform infers name
-const FACTOR = $.const(0.625);     // transform infers name
+const factor = $.let(0.625); // transform infers name
+const FACTOR = $.const(0.625); // transform infers name
 const named = $.let("named", expr); // already explicit; unchanged
 ```
 
