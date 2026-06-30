@@ -100,7 +100,13 @@ export type TupleShaderFn<
 // GLSL type universe
 // ---------------------------------------------------------------------------
 
-export type GlslType = "float" | "vec2" | "vec3" | "vec4" | "mat2" | "sampler2D";
+export type GlslType =
+  | "float"
+  | "vec2"
+  | "vec3"
+  | "vec4"
+  | "mat2"
+  | "sampler2D";
 
 export type Channels<T extends GlslType> = T extends "float"
   ? never
@@ -217,8 +223,7 @@ export type UniformExprs<U extends UniformMap> = {
       ? ExprProxy<UniformExprKind<Kd>>
       : never
     : never;
-} &
-  TextureResolutionExprs<U>;
+} & TextureResolutionExprs<U>;
 
 export type ShaderContext<U extends UniformMap = UniformMap> = {
   /** Declare a named local variable. */

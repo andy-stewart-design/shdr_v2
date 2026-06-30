@@ -8,7 +8,10 @@ export type ShdrImportBindings = {
 };
 
 function isShdrImport(source: string): boolean {
-  return /(^|\/)shdr(\/index\.ts)?$/.test(source) || /(^|\/)shdr\/index\.ts$/.test(source);
+  return (
+    /(^|\/)shdr(\/index\.ts)?$/.test(source) ||
+    /(^|\/)shdr\/index\.ts$/.test(source)
+  );
 }
 
 function emptyBindings(): ShdrImportBindings {
@@ -20,7 +23,11 @@ function emptyBindings(): ShdrImportBindings {
   };
 }
 
-function addBinding(bindings: ShdrImportBindings, imported: string, local: string) {
+function addBinding(
+  bindings: ShdrImportBindings,
+  imported: string,
+  local: string,
+) {
   switch (imported) {
     case "fn":
       bindings.fnNames.add(local);
@@ -46,7 +53,8 @@ export function collectShdrImports(program: AnyNode): ShdrImportBindings {
     const node = stmt as AnyNode;
     if (node.type !== "ImportDeclaration") continue;
     const source = node.source as { value?: unknown } | undefined;
-    if (typeof source?.value !== "string" || !isShdrImport(source.value)) continue;
+    if (typeof source?.value !== "string" || !isShdrImport(source.value))
+      continue;
 
     const specifiers = Array.isArray(node.specifiers) ? node.specifiers : [];
     for (const specifier of specifiers) {
@@ -55,7 +63,8 @@ export function collectShdrImports(program: AnyNode): ShdrImportBindings {
       if (spec.type !== "ImportSpecifier") continue;
       const imported = spec.imported as { name?: unknown } | undefined;
       const local = spec.local as { name?: unknown } | undefined;
-      if (typeof imported?.name !== "string" || typeof local?.name !== "string") continue;
+      if (typeof imported?.name !== "string" || typeof local?.name !== "string")
+        continue;
       addBinding(bindings, imported.name, local.name);
     }
   }

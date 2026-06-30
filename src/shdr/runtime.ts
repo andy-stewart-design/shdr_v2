@@ -298,7 +298,7 @@ export function createShader<U extends UniformMap = UniformMap>(
     glRef.uniform2f(uResolution, canvas.width, canvas.height);
     glRef.uniform2f(uMouse, mouseX, mouseY);
     for (const runtimeUniform of customUniforms) {
-      runtimeUniform.bindSampler?.();                          // always — survives program re-links
+      runtimeUniform.bindSampler?.(); // always — survives program re-links
       if (runtimeUniform.uniform.consumeDirty()) runtimeUniform.apply();
     }
     glRef.drawArrays(glRef.TRIANGLES, 0, 3); // 3 vertices — one oversized triangle

@@ -488,9 +488,7 @@ createShader({
 Desired shader concepts:
 
 ```ts
-const textureAR = $.u.textureResolution.x.div(
-  $.u.textureResolution.y,
-);
+const textureAR = $.u.textureResolution.x.div($.u.textureResolution.y);
 const canvasAR = $.resolution.x.div($.resolution.y);
 
 const useXScale = step(canvasAR, textureAR);
@@ -515,7 +513,7 @@ const adjustedUV = $.let("adjustedUV", $.uv.sub(0.5).mul(uvScale).add(0.5));
 Use `$.u` in Phase 1.
 
 ```ts
-$.u.pixelation
+$.u.pixelation;
 ```
 
 Avoid `$.uniform("pixelation", "float")` unless dynamic proxy typing becomes unexpectedly difficult. Phase 1 can type `$.u` loosely; Phase 2 will improve inference.
@@ -546,12 +544,12 @@ Throw early with clear errors for invalid custom uniform names.
 Reserved keys:
 
 ```ts
-time
-resolution
-mouse
-fragCoord
-uv
-u
+time;
+resolution;
+mouse;
+fragCoord;
+uv;
+u;
 ```
 
 Also reject keys that already start with `u_`.
@@ -591,9 +589,9 @@ pixelation.set(12); // no-op if current value is already 12
 Keep built-ins special-cased for Phase 1:
 
 ```ts
-$.time
-$.resolution
-$.mouse
+$.time;
+$.resolution;
+$.mouse;
 ```
 
 Do not move these onto the custom uniform system yet.
@@ -637,7 +635,6 @@ These do not block the completed implementation.
   - Current implemented API: `$.u.texture` and `$.u.textureResolution`
   - Possible future API: `$.u.texture.sample(uv)` and `$.u.texture.resolution`
 - Should built-ins eventually move onto the same uniform system internally?
-
 
 ---
 

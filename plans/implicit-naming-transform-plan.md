@@ -7,6 +7,7 @@ See `implicit-naming-transform.md` for the full PRD and design rationale.
 ## Step 1 — Install dependencies and scaffold the plugin
 
 **Work:**
+
 - Install `oxc-parser` and `@babel/parser` as dev dependencies
   (`oxc-parser` is already transitively available via Vite 8 → rolldown, but
   declaring it explicitly pins the version and makes the dep explicit)
@@ -21,6 +22,7 @@ export default defineConfig({ plugins: [shdrPlugin()] });
 ```
 
 **Verify:**
+
 - Dev server starts without errors
 - A `console.log` inside the no-op `transformShdrSource` fires when a `.ts` file
   containing `compileFragment` is loaded
@@ -30,6 +32,7 @@ export default defineConfig({ plugins: [shdrPlugin()] });
 ## Step 2 — Parser abstraction interface
 
 **Work:**
+
 - Define `ShdrParser` and `ParsedModule` interfaces in `src/transform/parser.ts`
 - These are the only types the transform logic will depend on — no parser-specific
   types leak through
@@ -47,6 +50,7 @@ interface ParsedModule {
 ```
 
 **Verify:**
+
 - File compiles with `tsc --noEmit` — interface definitions only, no runtime code yet
 
 ---
@@ -54,6 +58,7 @@ interface ParsedModule {
 ## Step 3 — `oxc-parser` adapter (primary)
 
 **Work:**
+
 - Implement `OxcParser` in `src/transform/oxc-parser.ts`
 - Use `oxc-parser`'s `parseSync` with `{ sourceType: "module", sourceFilename: id }`
 - For `importsFrom`: use the top-level `staticImports` returned directly by
@@ -63,6 +68,7 @@ interface ParsedModule {
 - For `callsTo` and `declarationsIn`: standard ESTree node walks
 
 **Verify:**
+
 - Write a standalone script that runs `OxcParser` against `src/fragments/gradient.ts`
 - Confirm `importsFrom(/shdr/)` finds the shdr import
 - Confirm `arrowFnsTypedAs("FragmentFn")` finds the `fragment` arrow function
@@ -75,6 +81,7 @@ interface ParsedModule {
 ## Step 4 — `@babel/parser` adapter (fallback)
 
 **Work:**
+
 - Implement `BabelParser` in `src/transform/babel-parser.ts`
 - Uses `@babel/parser`'s `parse` with `{ sourceType: "module", plugins: ["typescript"] }`
 - Implements the same `ParsedModule` interface as the oxc adapter
@@ -83,6 +90,7 @@ interface ParsedModule {
   `typeAnnotation.typeAnnotation.typeName.name`
 
 **Verify:**
+
 - Run the same test script from Step 3 but with `BabelParser` instead of `OxcParser`
 - Results should be identical across both adapters for all four queries
 - This confirms the abstraction layer is working correctly
@@ -92,6 +100,7 @@ interface ParsedModule {
 ## Step 5 — Boundary detection
 
 **Work:**
+
 - Implement `findFragmentBoundaries(module: ParsedModule)` in
   `src/transform/boundaries.ts`
 - Detects all three `FragmentFn` patterns:
@@ -105,6 +114,7 @@ interface ParsedModule {
 - Returns `{ node: FunctionNode, kind: "fragment" | "fn-body" }[]`
 
 **Verify:**
+
 - Run against `src/fragments/gradient.ts` → 1 `fragment` boundary
 - Run against `src/shader-utils.ts` → 4 `fn-body` boundaries
 - Run against `src/main.ts` → 0 boundaries (no shader callbacks defined there)
@@ -115,6 +125,7 @@ interface ParsedModule {
 ## Step 6 — Declaration collection
 
 **Work:**
+
 - Implement `collectDeclarations(body: FunctionNode, module: ParsedModule)`
   in `src/transform/declarations.ts`
 - Walks **top-level statements only** — no recursion into nested functions
@@ -126,6 +137,7 @@ interface ParsedModule {
 - Ignores destructuring patterns (`const { x } = ...`, `const [a] = ...`)
 
 **Verify:**
+
 - Run against the body of `gradient.ts`'s `fragment`:
   - `FILM_GRAIN_INTENSITY` → SCREAMING, skipLet: false
   - `COLOR_GREEN` → SCREAMING, skipLet: false
@@ -139,6 +151,7 @@ interface ParsedModule {
 ## Step 7 — Source rewriting with `magic-string`
 
 **Work:**
+
 - Implement `rewriteDeclarations(s: MagicString, declarations: Declaration[])`
   in `src/transform/rewrite.ts`
 - For each declaration with `skipLet: false`:
@@ -150,6 +163,7 @@ interface ParsedModule {
   prepend `"name", ` immediately after the opening `(` of the call
 
 **Verify:**
+
 - Run the full pipeline on `src/shader-utils.ts` (no explicit `$.let` calls)
 - Print transformed source and confirm:
   - `const s = sin(a)` → `const s = $.let("s", sin(a))`
@@ -161,10 +175,12 @@ interface ParsedModule {
 ## Step 8 — Source maps
 
 **Work:**
+
 - Return `{ code: s.toString(), map: s.generateMap({ hires: true }) }` from the
   Vite transform hook
 
 **Verify:**
+
 - Open browser devtools → Sources panel
 - Set a breakpoint inside a transformed fragment callback
 - Confirm the breakpoint resolves to the original source line, not the rewritten form
@@ -174,18 +190,23 @@ interface ParsedModule {
 ## Step 9 — Wire into the dev server and smoke test
 
 **Work:**
+
 - Connect all steps in `transformShdrSource(code, id)`
 - Add the early-exit guard:
   ```ts
-  if (!code.includes("FragmentFn") &&
-      !code.includes("compileFragment") &&
-      !code.includes("createShader") &&
-      !code.includes(" fn(")) return;
+  if (
+    !code.includes("FragmentFn") &&
+    !code.includes("compileFragment") &&
+    !code.includes("createShader") &&
+    !code.includes(" fn(")
+  )
+    return;
   ```
 - Remove all explicit `$.let`, `$.const`, and name-string calls from
   `src/fragments/palette.ts` (the simplest fragment — a good first target)
 
 **Verify:**
+
 - Dev server starts, palette shader renders correctly
 - `compileFragment(fragment)` output is identical to the pre-transform version
 - Breakpoints still resolve to original source
@@ -195,12 +216,14 @@ interface ParsedModule {
 ## Step 10 — Apply to all remaining shader files
 
 **Work:**
+
 - Remove explicit boilerplate from:
   - `src/shader-utils.ts`
   - `src/fragments/gradient.ts`
   - `src/fragments/circles.ts`
 
 **Verify:**
+
 - All three shaders render correctly when toggled in `main.ts`
 - GLSL output is identical to pre-transform for each
 
@@ -209,9 +232,11 @@ interface ParsedModule {
 ## Step 11 — HMR verification
 
 **Work:**
+
 - No code changes — manual verification only
 
 **Verify:**
+
 - With dev server running, edit a value in a fragment file (e.g. change
   `ROTATION_SPEED = 0.15` to `ROTATION_SPEED = 0.5`)
 - Shader hot-reloads and the change is visible without a full page refresh

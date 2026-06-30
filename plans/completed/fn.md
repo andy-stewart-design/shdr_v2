@@ -195,15 +195,14 @@ error (`Circular dependency detected: noise → hash → noise`).
 
 ## Files touched
 
-| File                     | Change                                                    |
-| ------------------------ | --------------------------------------------------------- |
-| `src/shdr/types.ts`      | `FnDef`, `ShaderFn`, `ParamsToExprs`, `FnCallNode`        |
-| `src/shdr/ast.ts`        | `FnCallNode` in `AstNode` union, `compileExpr` case       |
+| File                     | Change                                                  |
+| ------------------------ | ------------------------------------------------------- |
+| `src/shdr/types.ts`      | `FnDef`, `ShaderFn`, `ParamsToExprs`, `FnCallNode`      |
+| `src/shdr/ast.ts`        | `FnCallNode` in `AstNode` union, `compileExpr` case     |
 | `src/shdr/fn.ts`         | New file — `fn` function                                |
-| `src/shdr/compile.ts`    | Harvest + emit `FnDef`s; topological sort                 |
-| `src/shdr/glsl-types.ts` | New file — dual-namespace `Float`, `Vec2`, etc.           |
+| `src/shdr/compile.ts`    | Harvest + emit `FnDef`s; topological sort               |
+| `src/shdr/glsl-types.ts` | New file — dual-namespace `Float`, `Vec2`, etc.         |
 | `src/shdr/index.ts`      | Re-export `fn`, `Float`, `Vec2`, `Vec3`, `Vec4`, `Mat2` |
-
 
 ---
 

@@ -5,8 +5,11 @@
 The DSL currently requires explicit names to produce readable GLSL output:
 
 ```ts
-const tuv   = $.let("tuv",   $.uv.sub(0.5));
-const distX = $.let("distX", sin(tuv.y.mul(WAVE_FREQ).add(speed)).div(WAVE_AMP));
+const tuv = $.let("tuv", $.uv.sub(0.5));
+const distX = $.let(
+  "distX",
+  sin(tuv.y.mul(WAVE_FREQ).add(speed)).div(WAVE_AMP),
+);
 ```
 
 The name appears twice — once for JS, once for GLSL — which is redundant noise.
@@ -38,19 +41,20 @@ const rot   = fn("rot", [Float], Mat2, ([a], { sin, cos, mat2 }) => { ... });
 
 JS identifier casing is the sole signal. The JS keyword (`const` vs `let`) is ignored — both are treated identically.
 
-| JS name | Transform injects | GLSL output |
-|---|---|---|
-| `camelCase` | `$.let("name", expr)` | `float name = ...;` inside `main()` |
+| JS name          | Transform injects       | GLSL output                              |
+| ---------------- | ----------------------- | ---------------------------------------- |
+| `camelCase`      | `$.let("name", expr)`   | `float name = ...;` inside `main()`      |
 | `SCREAMING_CASE` | `$.const("NAME", expr)` | `const float NAME = ...;` above `main()` |
-| `_camelCase` | nothing — left as-is | inlined wherever used |
+| `_camelCase`     | nothing — left as-is    | inlined wherever used                    |
 
 `_camelCase` is the escape hatch for:
+
 1. Intermediate expressions named for readability but not needed in GLSL output
 2. Plain JS values inside the callback that aren't shader expressions
 
 ```ts
-const _scale = 30.0;                                    // not touched
-const distX  = sin(tuv.y.mul(WAVE_FREQ)).div(_scale);   // _scale inlined
+const _scale = 30.0; // not touched
+const distX = sin(tuv.y.mul(WAVE_FREQ)).div(_scale); // _scale inlined
 ```
 
 `SCREAMING_CASE` inside `fn()` bodies is treated as `_camelCase` (inline), since
@@ -87,6 +91,7 @@ Existing code works unchanged without opt-in.
 ### Boundaries
 
 The transform operates inside:
+
 - `FragmentFn` bodies — detected by type annotation (`const f: FragmentFn = ...`)
   or call site (`compileFragment(...)`, `createShader({ fragment: ... })`)
 - `fn()` body callbacks — the last argument of any call to the `fn` binding
@@ -99,7 +104,7 @@ For `fn()` detection specifically, the transform tracks the import binding rathe
 than trusting the name alone:
 
 ```ts
-import { fn } from "./shdr/index.ts";  // ← tracked
+import { fn } from "./shdr/index.ts"; // ← tracked
 ```
 
 Only calls to this specific binding are treated as shader fn bodies, preventing
@@ -141,6 +146,7 @@ and strips type annotations. Since boundary detection requires reading
 `const fragment: FragmentFn = ...` type annotations, TypeScript parsing is required.
 
 **`oxc-parser` is the default adapter.** Reasons:
+
 - Already transitively available via Vite 8 → rolldown (no extra install needed)
 - Full TypeScript support via TS-ESTree format
 - Returns static import info directly (`staticImports`) without walking the AST

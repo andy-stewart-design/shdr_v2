@@ -2,7 +2,15 @@ import type { FragmentFn } from "../../shdr/index.ts";
 import { SPACING_FACTOR } from "./constants.ts";
 import { circles } from "./utils.shdr.ts";
 
-export const fragment: FragmentFn = ({ $, vec2, vec4, step, length, floor, float }) => {
+export const fragment: FragmentFn = ({
+  $,
+  vec2,
+  vec4,
+  step,
+  length,
+  floor,
+  float,
+}) => {
   const CENTRAL_RAD = float(0.1);
   const SATELLITE_RAD = float(0.0375);
   const ROTATION_SPEED = 0.15;
@@ -11,7 +19,9 @@ export const fragment: FragmentFn = ({ $, vec2, vec4, step, length, floor, float
   const xy = $.coord.mul(2.0).sub($.resolution).div($.resolution.y);
   const C = vec2(0.0);
   const distFromCenter = length(xy.sub(C));
-  const i = floor(distFromCenter.sub(CENTRAL_RAD).div(SATELLITE_RAD.mul(SPACING)));
+  const i = floor(
+    distFromCenter.sub(CENTRAL_RAD).div(SATELLITE_RAD.mul(SPACING)),
+  );
   const phaseOffset = $.time.mul(ROTATION_SPEED).mul(i.mul(0.1).add(1.0)).neg();
 
   const col = circles({

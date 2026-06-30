@@ -379,7 +379,7 @@ const uv = $.uv.sub(0.5);
 rewrite initializer to:
 
 ```ts
-$.let("uv", $.uv.sub(0.5))
+$.let("uv", $.uv.sub(0.5));
 ```
 
 For fragment screaming-case declarations:
@@ -391,7 +391,7 @@ const COLOR = vec3(1.0);
 rewrite initializer to:
 
 ```ts
-$.const("COLOR", vec3(1.0))
+$.const("COLOR", vec3(1.0));
 ```
 
 For `fn()` body declarations:
@@ -403,19 +403,19 @@ const s = sin(a);
 rewrite initializer to:
 
 ```ts
-$.let("s", sin(a))
+$.let("s", sin(a));
 ```
 
 For `fn()` name inference:
 
 ```ts
-fn([Float], Mat2, body)
+fn([Float], Mat2, body);
 ```
 
 insert:
 
 ```ts
-fn("rot", [Float], Mat2, body)
+fn("rot", [Float], Mat2, body);
 ```
 
 ### Important ordering
@@ -555,7 +555,8 @@ Manual verification only.
 ### Multiple declarators
 
 ```ts
-const a = foo(), b = bar();
+const a = foo(),
+  b = bar();
 ```
 
 MVP behavior: skip the whole declaration and optionally warn in dev.

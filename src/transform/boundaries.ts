@@ -66,7 +66,9 @@ function fnBodyBoundary(fn: AnyNode): TransformBoundary {
   if (ctxParam?.type === "ObjectPattern") {
     const properties = (ctxParam.properties as unknown[]) ?? [];
     const hasDollar = properties.some(
-      (prop) => (prop as AnyNode).type === "Property" && identifierName((prop as AnyNode).key) === "$",
+      (prop) =>
+        (prop as AnyNode).type === "Property" &&
+        identifierName((prop as AnyNode).key) === "$",
     );
     return {
       kind: "fn-body",
@@ -93,7 +95,9 @@ function findFragmentBoundaries(
     if (!rawStmt || typeof rawStmt !== "object") continue;
     const stmt = unwrapExport(rawStmt as AnyNode);
     if (stmt.type !== "VariableDeclaration") continue;
-    const declarations = Array.isArray(stmt.declarations) ? stmt.declarations : [];
+    const declarations = Array.isArray(stmt.declarations)
+      ? stmt.declarations
+      : [];
     for (const decl of declarations) {
       const d = decl as AnyNode;
       const id = d.id as AnyNode | undefined;

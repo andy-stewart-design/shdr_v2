@@ -8,10 +8,18 @@ export type AnyNode = {
 };
 
 export function isNode(value: unknown): value is AnyNode {
-  return !!value && typeof value === "object" && typeof (value as AnyNode).type === "string";
+  return (
+    !!value &&
+    typeof value === "object" &&
+    typeof (value as AnyNode).type === "string"
+  );
 }
 
-export function walk(node: unknown, visit: (node: AnyNode, parent: AnyNode | null) => void, parent: AnyNode | null = null): void {
+export function walk(
+  node: unknown,
+  visit: (node: AnyNode, parent: AnyNode | null) => void,
+  parent: AnyNode | null = null,
+): void {
   if (!isNode(node)) return;
   visit(node, parent);
   const keys = visitorKeys[node.type] ?? [];

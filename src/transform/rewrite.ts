@@ -9,16 +9,26 @@ export type RewriteEdit =
   | { type: "explicit-name"; edit: ExplicitNameEdit }
   | { type: "context-param"; edit: ContextParamEdit };
 
-function rangesOverlap(aStart: number, aEnd: number, bStart: number, bEnd: number): boolean {
+function rangesOverlap(
+  aStart: number,
+  aEnd: number,
+  bStart: number,
+  bEnd: number,
+): boolean {
   return aStart < bEnd && bStart < aEnd;
 }
 
 function editRange(edit: RewriteEdit): [number, number] {
-  if (edit.type === "wrap") return [edit.declaration.initStart, edit.declaration.initEnd];
+  if (edit.type === "wrap")
+    return [edit.declaration.initStart, edit.declaration.initEnd];
   return [edit.edit.insertPos, edit.edit.insertPos];
 }
 
-export function applyRewriteEdits(code: string, edits: RewriteEdit[], id: string) {
+export function applyRewriteEdits(
+  code: string,
+  edits: RewriteEdit[],
+  id: string,
+) {
   if (edits.length === 0) return null;
 
   const sorted = [...edits].sort((a, b) => editRange(a)[0] - editRange(b)[0]);

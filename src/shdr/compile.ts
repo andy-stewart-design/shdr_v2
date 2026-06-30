@@ -191,9 +191,11 @@ export type Builtins = {
   max: typeof max;
 };
 
-export type FragmentFn<U extends UniformMap = UniformMap> = (ctx: {
-  $: ShaderContext<U>;
-} & Builtins) => void;
+export type FragmentFn<U extends UniformMap = UniformMap> = (
+  ctx: {
+    $: ShaderContext<U>;
+  } & Builtins,
+) => void;
 
 // ---------------------------------------------------------------------------
 // GLSL keyword map
@@ -270,23 +272,26 @@ export function compileFragment<U extends UniformMap = UniformMap>(
         value: toNode(value),
       });
     },
-    u: new Proxy({}, {
-      get(_target, prop) {
-        if (typeof prop !== "string") return undefined;
-        const uniform = customUniforms[prop];
-        if (uniform) {
-          return refProxy([`u_${prop}`], uniformKindToGlslType(uniform.kind));
-        }
-        if (prop.endsWith("Resolution")) {
-          const base = prop.slice(0, -"Resolution".length);
-          const textureUniform = customUniforms[base];
-          if (textureUniform?.kind === "texture2D") {
-            return refProxy([`u_${base}_resolution`], "vec2");
+    u: new Proxy(
+      {},
+      {
+        get(_target, prop) {
+          if (typeof prop !== "string") return undefined;
+          const uniform = customUniforms[prop];
+          if (uniform) {
+            return refProxy([`u_${prop}`], uniformKindToGlslType(uniform.kind));
           }
-        }
-        throw new Error(`Unknown custom uniform "${prop}".`);
+          if (prop.endsWith("Resolution")) {
+            const base = prop.slice(0, -"Resolution".length);
+            const textureUniform = customUniforms[base];
+            if (textureUniform?.kind === "texture2D") {
+              return refProxy([`u_${base}_resolution`], "vec2");
+            }
+          }
+          throw new Error(`Unknown custom uniform "${prop}".`);
+        },
       },
-    }) as ShaderContext<U>["u"],
+    ) as ShaderContext<U>["u"],
     get uv(): ExprProxy<"vec2"> {
       return refProxy(["shdr_uv"], "vec2");
     },

@@ -4,15 +4,16 @@ export type UniformKind = "float" | "vec2" | "vec3" | "vec4" | "texture2D";
 
 export type TextureSource = string | File | Blob;
 
-export type UniformValue<K extends UniformKind = UniformKind> = K extends "float"
-  ? number
-  : K extends "vec2"
-    ? [number, number]
-    : K extends "vec3"
-      ? [number, number, number]
-      : K extends "vec4"
-        ? [number, number, number, number]
-        : TextureSource;
+export type UniformValue<K extends UniformKind = UniformKind> =
+  K extends "float"
+    ? number
+    : K extends "vec2"
+      ? [number, number]
+      : K extends "vec3"
+        ? [number, number, number]
+        : K extends "vec4"
+          ? [number, number, number, number]
+          : TextureSource;
 
 export type Uniform<K extends UniformKind = UniformKind> = {
   readonly kind: K;
@@ -32,7 +33,9 @@ function equalValue(
   return a.length === b.length && a.every((v, i) => v === b[i]);
 }
 
-function copyValue<T extends number | TextureSource | readonly number[]>(value: T): T {
+function copyValue<T extends number | TextureSource | readonly number[]>(
+  value: T,
+): T {
   return (Array.isArray(value) ? [...value] : value) as T;
 }
 
