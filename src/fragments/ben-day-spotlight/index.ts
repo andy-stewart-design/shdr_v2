@@ -19,9 +19,8 @@ export const fragment: FragmentFn<typeof uniforms> = ({
   max,
 }) => {
   const { dpi } = $.u;
-  const SPREAD_FACTOR = $.const("SPREAD_FACTOR", 0.625);
+  const SPREAD_FACTOR = $.const(0.625);
   const SPREAD_AMOUNT = $.const(
-    "SPREAD_AMOUNT",
     SPREAD_FACTOR.neg().add(1.0).mul(2.5).add(0.5),
   );
   const BLUR_AMOUNT = 0.0;

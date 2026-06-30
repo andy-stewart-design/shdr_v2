@@ -10,6 +10,11 @@ export type TransformDeclaration = {
   initEnd: number;
 };
 
+export type ExplicitNameEdit = {
+  name: string;
+  insertPos: number;
+};
+
 function identifierName(node: unknown): string | null {
   return node && typeof node === "object" && typeof (node as { name?: unknown }).name === "string"
     ? (node as { name: string }).name
@@ -25,10 +30,18 @@ function memberExpressionName(node: unknown): { object: string; property: string
   return object && property ? { object, property } : null;
 }
 
-function isAlreadyWrapped(init: AnyNode): boolean {
-  if (init.type !== "CallExpression") return false;
+function explicitWrapperKind(init: AnyNode): DeclarationKind | null {
+  if (init.type !== "CallExpression") return null;
   const callee = memberExpressionName(init.callee);
-  return callee?.object === "$" && (callee.property === "let" || callee.property === "const");
+  if (callee?.object !== "$") return null;
+  if (callee.property === "let" || callee.property === "const") return callee.property;
+  return null;
+}
+
+function firstArgIsString(init: AnyNode): boolean {
+  const args = (init.arguments as unknown[]) ?? [];
+  const first = args[0] as AnyNode | undefined;
+  return first?.type === "Literal" && typeof (first as { value?: unknown }).value === "string";
 }
 
 function classifyName(name: string, boundaryKind: TransformBoundary["kind"]): DeclarationKind | null {
@@ -38,6 +51,33 @@ function classifyName(name: string, boundaryKind: TransformBoundary["kind"]): De
     return boundaryKind === "fragment" ? "const" : null;
   }
   return "let";
+}
+
+export function collectExplicitNameEdits(boundary: TransformBoundary): ExplicitNameEdit[] {
+  const body = boundary.node.body as AnyNode | undefined;
+  if (body?.type !== "BlockStatement") return [];
+  const statements = Array.isArray(body.body) ? body.body : [];
+  const edits: ExplicitNameEdit[] = [];
+
+  for (const stmt of statements) {
+    const node = stmt as AnyNode;
+    if (node.type !== "VariableDeclaration") continue;
+    const declarators = Array.isArray(node.declarations) ? node.declarations : [];
+    if (declarators.length !== 1) continue;
+    const declarator = declarators[0] as AnyNode;
+    const id = declarator.id as AnyNode | undefined;
+    const init = declarator.init as AnyNode | undefined;
+    if (id?.type !== "Identifier" || !init) continue;
+    const name = id.name;
+    if (typeof name !== "string") continue;
+    const wrapperKind = explicitWrapperKind(init);
+    if (!wrapperKind || firstArgIsString(init)) continue;
+    const callee = memberExpressionName(init.callee);
+    if (!callee || typeof init.start !== "number") continue;
+    edits.push({ name, insertPos: init.start + `${callee.object}.${callee.property}(`.length });
+  }
+
+  return edits;
 }
 
 export function collectTransformDeclarations(boundary: TransformBoundary): TransformDeclaration[] {
@@ -56,7 +96,7 @@ export function collectTransformDeclarations(boundary: TransformBoundary): Trans
     const init = declarator.init as AnyNode | undefined;
     if (id?.type !== "Identifier" || !init) continue;
     if (typeof init.start !== "number" || typeof init.end !== "number") continue;
-    if (isAlreadyWrapped(init)) continue;
+    if (explicitWrapperKind(init)) continue;
 
     const name = id.name;
     if (typeof name !== "string") continue;

@@ -1,10 +1,11 @@
 import MagicString from "magic-string";
-import type { TransformDeclaration } from "./declarations.ts";
+import type { ExplicitNameEdit, TransformDeclaration } from "./declarations.ts";
 import type { FnNameEdit } from "./fn-names.ts";
 
 export type RewriteEdit =
   | { type: "wrap"; declaration: TransformDeclaration }
-  | { type: "fn-name"; edit: FnNameEdit };
+  | { type: "fn-name"; edit: FnNameEdit }
+  | { type: "explicit-name"; edit: ExplicitNameEdit };
 
 function rangesOverlap(aStart: number, aEnd: number, bStart: number, bEnd: number): boolean {
   return aStart < bEnd && bStart < aEnd;

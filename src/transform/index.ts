@@ -1,5 +1,8 @@
 import { findTransformBoundaries } from "./boundaries.ts";
-import { collectTransformDeclarations } from "./declarations.ts";
+import {
+  collectExplicitNameEdits,
+  collectTransformDeclarations,
+} from "./declarations.ts";
 import { collectFnNameEdits } from "./fn-names.ts";
 import { collectShdrImports } from "./imports.ts";
 import { parseModule } from "./parse.ts";
@@ -36,6 +39,9 @@ export function transformShdrSource(code: string, id: string) {
   for (const boundary of boundaries) {
     for (const declaration of collectTransformDeclarations(boundary)) {
       edits.push({ type: "wrap", declaration });
+    }
+    for (const edit of collectExplicitNameEdits(boundary)) {
+      edits.push({ type: "explicit-name", edit });
     }
   }
 
