@@ -12,8 +12,8 @@ const palette = fn([Float], Vec3, ([t], { cos, vec3 }) => {
 });
 
 export const fragment: FragmentFn = ({ $, vec2, vec3, vec4, sin, mix }) => {
-  const GRAIN_AMOUNT = 0.125;
-  const DITHER_AMOUNT = 5.0 / 255.0;
+  const GRAIN_AMOUNT = 0.1;
+  const DITHER_AMOUNT = 0.005;
   const DITHER_SEED = 123.456;
 
   const ndc = $.uv.mul(2.0).sub(1.0);
