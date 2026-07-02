@@ -395,3 +395,47 @@ For multiple scalar inspect values, a debug overlay could render small strips or
 - Should inspect conditionals be emitted after every assignment or only after final `$.output(...)`?
 - Should duplicate inspect names throw immediately during fragment compilation?
 - Should the default inspect view always be `"off"`, or should development mode remember the last selected view?
+
+---
+
+## Design Notes
+
+### Resolved: `compileFragmentWithMeta` is the right split
+
+Keep `compileFragment(...)` returning `string` for backward compatibility. Add
+`compileFragmentWithMeta(...)` returning `{ glsl: string, inspectViews: string[] }`.
+`createShader(...)` uses the metadata path internally with no public API break.
+
+### Resolved: conditionals emitted only after `$.output(...)`
+
+Inspect `if` blocks should be emitted once, after the final `$.output()` assignment,
+not after every intermediate statement. The inspect values are captured as named
+GLSL variables at the point of each `$.inspect()` call — the final `if` blocks
+just reference those names by the time they run.
+
+### Prefer `if-else if` over multiple `if` statements
+
+Using `if-else if` is more semantically correct than separate `if` statements and
+some drivers optimize uniform-based branches more aggressively in an if-else chain.
+The change from the multiple-`if` sketch in the compiler design above is trivial.
+
+### Dirty tracking for the inspect uniform should be in MVP
+
+The PRD lists dirty tracking as "preferable but not required." In practice it is
+trivial: the uniform only changes when `.set()` is called explicitly, so a single
+flag flipped in `.set()` is sufficient. It should be included from the start.
+
+### Inline expressions vs named variables
+
+If `$.inspect("x", $.uv.x)` is called without a preceding `$.let`, the `value:
+AstNode` is a complex expression re-compiled inline into each `if` block. In
+practice this is not a concern — `.shdr.ts` files run through the implicit naming
+transform, so nearly all values will already be in named GLSL variables.
+
+### Production build consideration
+
+Even with `"off"` as the default, inspect `if` blocks and the `u_shdr_inspect_view`
+uniform declaration are still emitted in production builds. For MVP this is
+acceptable — inspect is a dev tool and the overhead is minimal. A future
+consideration: a `$.inspect.dev(...)` variant or a build-time strip flag that
+eliminates all inspect code from production output.
