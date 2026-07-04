@@ -6,10 +6,17 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "check": "tsc",
+    "format": "prettier --write .",
     "preview": "vite preview"
   },
   "devDependencies": {
+    "magic-string": "^0.30.21",
+    "oxc-parser": "^0.138.0",
     "typescript": "~6.0.2",
     "vite": "^8.1.0"
+  },
+  "dependencies": {
+    "lil-gui": "^0.21.0"
   }
 }

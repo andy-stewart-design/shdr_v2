@@ -1,6 +1,6 @@
 import type { AstNode, Expr, ExprProxy, GlslType } from "./types.ts";
 
-export const NODE      = Symbol("node");
+export const NODE = Symbol("node");
 export const GLSL_TYPE = Symbol("glslType");
 
 // ---------------------------------------------------------------------------
@@ -30,12 +30,20 @@ export function formatNumber(n: number): string {
 
 export function compileExpr(node: AstNode): string {
   switch (node.kind) {
-    case "number": return formatNumber(node.value);
-    case "ref":    return node.path.join(".");
-    case "call":   return `${node.name}(${node.args.map(compileExpr).join(", ")})`;
-    case "field":  return `${compileExpr(node.expr)}.${node.field}`;
-    case "binop":  return `(${compileExpr(node.left)} ${node.op} ${compileExpr(node.right)})`;
-    case "unary":  return `(-${compileExpr(node.operand)})`;
+    case "number":
+      return formatNumber(node.value);
+    case "ref":
+      return node.path.join(".");
+    case "call":
+      return `${node.name}(${node.args.map(compileExpr).join(", ")})`;
+    case "field":
+      return `${compileExpr(node.expr)}.${node.field}`;
+    case "binop":
+      return `(${compileExpr(node.left)} ${node.op} ${compileExpr(node.right)})`;
+    case "unary":
+      return `(-${compileExpr(node.operand)})`;
+    case "fncall":
+      return `${node.def.name}(${node.args.map(compileExpr).join(", ")})`;
   }
 }
 
@@ -46,14 +54,21 @@ export function compileExpr(node: AstNode): string {
 const ARITH_OPS = { add: "+", sub: "-", mul: "*", div: "/" } as const;
 type ArithKey = keyof typeof ARITH_OPS;
 
-export function makeProxy<T extends GlslType>(node: AstNode, type: T): ExprProxy<T> {
+export function makeProxy<T extends GlslType>(
+  node: AstNode,
+  type: T,
+): ExprProxy<T> {
   const expr = makeExpr<T>(node, type);
 
   return new Proxy(expr, {
     get(_target, prop) {
-      if (prop === NODE)      return node;
+      if (prop === NODE) return node;
       if (prop === GLSL_TYPE) return type;
-      if (prop === Symbol.toPrimitive || prop === "toString" || prop === "valueOf")
+      if (
+        prop === Symbol.toPrimitive ||
+        prop === "toString" ||
+        prop === "valueOf"
+      )
         return () => compileExpr(node);
 
       if (typeof prop !== "string") return undefined;
@@ -62,9 +77,14 @@ export function makeProxy<T extends GlslType>(node: AstNode, type: T): ExprProxy
       if (prop === "mul") {
         return (other: Expr<GlslType> | number) => {
           const otherType: GlslType =
-            typeof other === "number" ? "float" : glslTypeOf(other as Expr<GlslType>);
+            typeof other === "number"
+              ? "float"
+              : glslTypeOf(other as Expr<GlslType>);
           const resultType: GlslType =
-            type === "mat2" && otherType === "vec2" ? "vec2" : type;
+            (type === "mat2" && otherType === "vec2") ||
+            (type === "vec2" && otherType === "mat2")
+              ? "vec2"
+              : type;
           return makeProxy(
             { kind: "binop", op: "*", left: node, right: toNode(other) },
             resultType,
@@ -75,7 +95,10 @@ export function makeProxy<T extends GlslType>(node: AstNode, type: T): ExprProxy
       if (prop in ARITH_OPS) {
         const op = ARITH_OPS[prop as ArithKey];
         return (other: Expr<GlslType> | number): ExprProxy<T> =>
-          makeProxy<T>({ kind: "binop", op, left: node, right: toNode(other) }, type);
+          makeProxy<T>(
+            { kind: "binop", op, left: node, right: toNode(other) },
+            type,
+          );
       }
 
       if (prop === "neg") {
@@ -85,15 +108,22 @@ export function makeProxy<T extends GlslType>(node: AstNode, type: T): ExprProxy
 
       // Swizzle / field access — infer result type from character count
       const swizzleType: GlslType =
-        prop.length === 1 ? "float" :
-        prop.length === 2 ? "vec2"  :
-        prop.length === 3 ? "vec3"  : "vec4";
+        prop.length === 1
+          ? "float"
+          : prop.length === 2
+            ? "vec2"
+            : prop.length === 3
+              ? "vec3"
+              : "vec4";
       return makeProxy({ kind: "field", expr: node, field: prop }, swizzleType);
     },
   }) as unknown as ExprProxy<T>;
 }
 
-export function refProxy<T extends GlslType>(path: string[], type: T): ExprProxy<T> {
+export function refProxy<T extends GlslType>(
+  path: string[],
+  type: T,
+): ExprProxy<T> {
   return makeProxy<T>({ kind: "ref", path }, type);
 }
 
