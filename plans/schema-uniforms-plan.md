@@ -480,12 +480,13 @@ Expected:
 - `moby-gradient`: no custom uniforms
 - `circles`: no custom uniforms
 - `horizon-burn`: no custom uniforms
+- `plasma`: migrated to schema uniforms
 
 **Acceptance criteria:**
 
-- [ ] All sketches compile.
-- [ ] `pnpm check` passes.
-- [ ] `pnpm build` passes.
+- [x] All sketches compile.
+- [x] `pnpm check` passes.
+- [x] `pnpm build` passes.
 
 ---
 
