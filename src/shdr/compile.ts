@@ -40,6 +40,7 @@ import type {
   FnDef,
   GlslType,
   ShaderContext,
+  TextureUniformExpr,
 } from "./types.ts";
 
 // ---------------------------------------------------------------------------
@@ -197,6 +198,20 @@ function getUniformType(uniform: UniformShape[string]): UniformKind {
   return "type" in uniform ? uniform.type : uniform.kind;
 }
 
+function textureUniformProxy(name: string): TextureUniformExpr {
+  const sampler = refProxy([`u_${name}`], "sampler2D");
+  return new Proxy(sampler, {
+    get(target, prop, receiver) {
+      if (prop === "resolution")
+        return refProxy([`u_${name}_resolution`], "vec2");
+      if (prop === "sample") {
+        return (uv: Expr<"vec2">) => texture(sampler, uv);
+      }
+      return Reflect.get(target, prop, receiver);
+    },
+  }) as TextureUniformExpr;
+}
+
 export type FragmentFn<U extends UniformShape = UniformSchema> = (
   ctx: {
     $: ShaderContext<U>;
@@ -285,10 +300,10 @@ export function compileFragment<U extends UniformShape = UniformSchema>(
           if (typeof prop !== "string") return undefined;
           const uniform = customUniforms[prop];
           if (uniform) {
-            return refProxy(
-              [`u_${prop}`],
-              uniformKindToGlslType(getUniformType(uniform)),
-            );
+            const type = getUniformType(uniform);
+            return type === "texture2D"
+              ? textureUniformProxy(prop)
+              : refProxy([`u_${prop}`], uniformKindToGlslType(type));
           }
           if (prop.endsWith("Resolution")) {
             const base = prop.slice(0, -"Resolution".length);

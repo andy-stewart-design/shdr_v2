@@ -225,12 +225,17 @@ type TextureResolutionExprs<U extends UniformShape> = {
     : never]: ExprProxy<"vec2">;
 };
 
+export type TextureUniformExpr = ExprProxy<"sampler2D"> & {
+  readonly resolution: ExprProxy<"vec2">;
+  sample(uv: Expr<"vec2">): ExprProxy<"vec4">;
+};
+
 export type UniformExprs<U extends UniformShape> = {
-  readonly [K in keyof U]: UniformExprKind<
-    UniformSpecType<U[K]>
-  > extends GlslType
-    ? ExprProxy<UniformExprKind<UniformSpecType<U[K]>>>
-    : never;
+  readonly [K in keyof U]: UniformSpecType<U[K]> extends "texture2D"
+    ? TextureUniformExpr
+    : UniformExprKind<UniformSpecType<U[K]>> extends GlslType
+      ? ExprProxy<UniformExprKind<UniformSpecType<U[K]>>>
+      : never;
 } & TextureResolutionExprs<U>;
 
 export type ShaderContext<U extends UniformShape = UniformSchema> = {

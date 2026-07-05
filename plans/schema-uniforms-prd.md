@@ -297,13 +297,19 @@ Shader context typing maps schema to expression proxies:
 { type: "texture2D" } -> ExprProxy<"sampler2D">
 ```
 
-Texture resolution remains available as:
+Texture uniforms expose object sugar:
 
 ```ts
-$.u.textureResolution;
+$.u.texture.sample($.uv);
+$.u.texture.resolution;
 ```
 
-until/unless the future texture object API lands.
+The flat compatibility API remains available:
+
+```ts
+texture($.u.texture, $.uv);
+$.u.textureResolution;
+```
 
 ---
 

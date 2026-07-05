@@ -26,9 +26,8 @@ const _fragment: FragmentFn<typeof uniforms> = ({
   step,
   mix,
   div,
-  texture,
 }) => {
-  const textureAR = $.u.textureResolution.x.div($.u.textureResolution.y);
+  const textureAR = $.u.texture.resolution.x.div($.u.texture.resolution.y);
   const canvasAR = $.resolution.x.div($.resolution.y);
 
   // Branchless object-fit: cover UV adjustment.
@@ -49,7 +48,7 @@ const _fragment: FragmentFn<typeof uniforms> = ({
   const x = dx.mul(floor(adjustedUV.x.div(dx)).add(0.5));
   const y = dy.mul(floor(adjustedUV.y.div(dy)).add(0.5));
 
-  $.output(texture($.u.texture, vec2(x, y)));
+  $.output($.u.texture.sample(vec2(x, y)));
 };
 
 export const fragment = compileFragment(_fragment, { uniforms });

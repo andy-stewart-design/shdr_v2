@@ -24,6 +24,7 @@ export type {
 export type { FragmentFn, Builtins } from "./compile.ts";
 export type {
   ExprProxy,
+  TextureUniformExpr,
   Expr,
   GlslType,
   ShaderContext,

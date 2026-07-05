@@ -490,12 +490,12 @@ Keep current flat API exactly as-is and add object sugar only for texture unifor
 
 Recommendation: Approach C. Preserve the existing API while making texture usage nicer.
 
-## Open questions
+## Resolved texture object decisions
 
-- How should TypeScript infer that `$.u.texture` has `.sample(...)` and `.resolution`?
-- Should `TextureUniformProxy` still be assignable where `ExprProxy<"sampler2D">` is expected?
-- How should this interact with swizzle/field access behavior on `ExprProxy` proxies?
-- Should texture object sugar work only for custom uniforms, or could it apply to any sampler expression?
+- `$.u.texture` is typed as `TextureUniformExpr`, an `ExprProxy<"sampler2D">` with `.sample(...)` and `.resolution` sugar.
+- `TextureUniformExpr` remains assignable where `ExprProxy<"sampler2D">` is expected, so the flat `texture($.u.texture, uv)` API still works.
+- Runtime proxy handling intercepts `sample` and `resolution` before falling back to normal `ExprProxy` field/swizzle behavior.
+- Texture object sugar applies to custom texture uniforms only for now.
 
 ## Acceptance criteria
 
