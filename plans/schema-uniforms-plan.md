@@ -126,7 +126,7 @@ u.float(12, { min: 2 });
 
 **Acceptance criteria:**
 
-- [ ] This typechecks:
+- [x] This typechecks:
 
 ```ts
 export const uniforms = defineUniforms((u) => ({
@@ -135,8 +135,8 @@ export const uniforms = defineUniforms((u) => ({
 }));
 ```
 
-- [ ] `type` remains a literal type, not widened to `string`.
-- [ ] `pnpm check` passes.
+- [x] `type` remains a literal type, not widened to `string`.
+- [x] `pnpm check` passes.
 
 ---
 

@@ -2,7 +2,7 @@
 export { compileFragment, compileFn } from "./compile.ts";
 export { createShader } from "./runtime.ts";
 export type { ShaderOptions, ShaderInstance } from "./runtime.ts";
-export { uniform } from "./uniform.ts";
+export { uniform, defineUniforms } from "./uniform.ts";
 export type {
   Uniform,
   UniformMap,
@@ -18,6 +18,10 @@ export type {
   Texture2DUniformSpec,
   UniformSpec,
   UniformSchema,
+  FloatUniformOptions,
+  VecUniformOptions,
+  TextureUniformOptions,
+  UniformSpecHelpers,
 } from "./uniform.ts";
 export type { FragmentFn, Builtins } from "./compile.ts";
 export type {
