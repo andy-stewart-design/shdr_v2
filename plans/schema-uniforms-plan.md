@@ -337,10 +337,10 @@ Runtime behavior remains:
 
 **Acceptance criteria:**
 
-- [ ] URL texture loading still works.
-- [ ] File upload still works.
-- [ ] `shader.u.texture.set(file)` reloads texture.
-- [ ] Texture resolution uniform still updates after load.
+- [x] URL texture loading still works.
+- [x] File upload still works.
+- [x] `shader.u.texture.set(file)` reloads texture.
+- [x] Texture resolution uniform still updates after load.
 
 ---
 
