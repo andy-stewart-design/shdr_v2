@@ -1,16 +1,20 @@
-import { uniform, type FragmentFn } from "../../shdr/index.ts";
+import {
+  compileFragment,
+  defineUniforms,
+  type FragmentFn,
+} from "../../shdr/index.ts";
 import { filmGrain } from "../utils/grain.shdr.ts";
 
-export const uniforms = {
-  scale: uniform.float(6.0),
-  speed: uniform.float(0.8),
-  complexity: uniform.float(2.0),
-  grain: uniform.float(0.12),
-  colorA: uniform.vec3([0.1, 0.3, 0.8]),
-  colorB: uniform.vec3([0.9, 0.2, 0.5]),
-};
+export const uniforms = defineUniforms((u) => ({
+  scale: u.float(6.0, { min: 1, max: 20, step: 0.1 }),
+  speed: u.float(0.8, { min: 0, max: 3, step: 0.05 }),
+  complexity: u.float(2.0, { min: 0.5, max: 6, step: 0.1 }),
+  grain: u.float(0.12, { min: 0, max: 0.5, step: 0.01 }),
+  colorA: u.vec3([0.1, 0.3, 0.8]),
+  colorB: u.vec3([0.9, 0.2, 0.5]),
+}));
 
-export const fragment: FragmentFn<typeof uniforms> = ({
+const _fragment: FragmentFn<typeof uniforms> = ({
   $,
   vec2,
   vec4,
@@ -45,3 +49,6 @@ export const fragment: FragmentFn<typeof uniforms> = ({
 
   $.output(vec4(finalColor, 1.0));
 };
+
+export const fragment = compileFragment(_fragment, { uniforms });
+console.log(fragment);

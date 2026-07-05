@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "check": "tsc",
+    "lint": "tsc && prettier --check .",
     "format": "prettier --write .",
     "preview": "vite preview"
   },

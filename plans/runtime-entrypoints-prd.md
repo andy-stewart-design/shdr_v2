@@ -191,14 +191,14 @@ and avoid shipping:
 Prefer:
 
 ```ts
-shdr/webgl
-shdr/webgpu
+shdr / webgl;
+shdr / webgpu;
 ```
 
 over a generic:
 
 ```ts
-shdr/runtime
+shdr / runtime;
 ```
 
 because backend-specific entries:
@@ -246,10 +246,10 @@ Keep `createShader` exported from `src/shdr/index.ts` temporarily for backward c
 Update README to describe:
 
 ```ts
-shdr        // authoring/compiler API
-shdr/webgl  // WebGL runtime
-shdr/webgpu // future WebGPU runtime
-shdr/vite   // Vite transform/plugin
+shdr; // authoring/compiler API
+shdr / webgl; // WebGL runtime
+shdr / webgpu; // future WebGPU runtime
+shdr / vite; // Vite transform/plugin
 ```
 
 Emphasize that the architecture is designed so compilation can eventually move out of the client bundle.
@@ -259,7 +259,7 @@ Emphasize that the architecture is designed so compilation can eventually move o
 Add support for:
 
 ```ts
-createShader({ canvas, shader })
+createShader({ canvas, shader });
 ```
 
 where `shader` contains precompiled GLSL and metadata.
@@ -267,7 +267,7 @@ where `shader` contains precompiled GLSL and metadata.
 Keep current support:
 
 ```ts
-createShader({ canvas, fragment })
+createShader({ canvas, fragment });
 ```
 
 for development and backwards compatibility.
@@ -290,7 +290,7 @@ This phase is where client bundle size can be meaningfully reduced.
 Add:
 
 ```ts
-shdr/webgpu
+shdr / webgpu;
 ```
 
 once WGSL/WebGPU backend work begins.

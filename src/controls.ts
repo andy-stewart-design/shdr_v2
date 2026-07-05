@@ -1,4 +1,11 @@
-import type { Uniform } from "./shdr/index.ts";
+import type {
+  FloatUniformSpec,
+  RuntimeUniform,
+  ShaderInstance,
+  Texture2DUniformSpec,
+  TextureFileExtension,
+  UniformSchema,
+} from "./shdr/index.ts";
 
 type GuiLike = {
   add(
@@ -13,14 +20,36 @@ type GuiLike = {
   };
 };
 
+const DEFAULT_TEXTURE_ACCEPT: TextureFileExtension[] = [
+  "png",
+  "jpg",
+  "jpeg",
+  "webp",
+  "gif",
+];
+
+const MIME_BY_EXTENSION: Record<TextureFileExtension, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+  gif: "image/gif",
+};
+
+function textureAcceptToMime(accept: TextureFileExtension[] | undefined) {
+  return (accept ?? DEFAULT_TEXTURE_ACCEPT)
+    .map((extension) => MIME_BY_EXTENSION[extension])
+    .join(",");
+}
+
 export function addTextureUploadControl(
   gui: GuiLike,
   label: string,
-  uniform: Uniform<"texture2D">,
+  uniform: RuntimeUniform<string | File | Blob, Texture2DUniformSpec>,
 ) {
   const input = document.createElement("input");
   input.type = "file";
-  input.accept = "image/png,image/jpeg,image/webp,image/gif";
+  input.accept = textureAcceptToMime(uniform.schema.accept);
   input.style.display = "none";
   document.body.appendChild(input);
 
@@ -44,7 +73,7 @@ export function addTextureUploadControl(
 export function addStringUniformControl(
   gui: GuiLike,
   label: string,
-  uniform: Uniform<"texture2D">,
+  uniform: RuntimeUniform<string | File | Blob, Texture2DUniformSpec>,
 ) {
   const params = {
     [label]: uniform.get(),
@@ -55,30 +84,56 @@ export function addStringUniformControl(
   });
 }
 
+export function addUniformControls<U extends UniformSchema>(
+  gui: GuiLike,
+  shader: ShaderInstance<U>,
+) {
+  for (const [key, uniform] of Object.entries(shader.u)) {
+    switch (uniform.schema.type) {
+      case "float":
+        addFloatUniformControl(
+          gui,
+          uniform.schema.label ?? key,
+          uniform as RuntimeUniform<number, FloatUniformSpec>,
+        );
+        break;
+      case "texture2D":
+        addStringUniformControl(
+          gui,
+          uniform.schema.label ?? key,
+          uniform as RuntimeUniform<string | File | Blob, Texture2DUniformSpec>,
+        );
+        addTextureUploadControl(
+          gui,
+          `Upload ${uniform.schema.label ?? key}`,
+          uniform as RuntimeUniform<string | File | Blob, Texture2DUniformSpec>,
+        );
+        break;
+    }
+  }
+}
+
 export function addFloatUniformControl(
   gui: GuiLike,
   label: string,
-  uniform: Uniform<"float">,
+  uniform: RuntimeUniform<number, FloatUniformSpec>,
   options: {
     min?: number;
     max?: number;
     step?: number;
-    /** Convert the GUI value before writing it to the shader uniform. */
-    toUniform?: (value: number) => number;
-    /** Convert the current shader uniform value into the displayed GUI value. */
-    fromUniform?: (value: number) => number;
   } = {},
 ) {
-  const toUniform = options.toUniform ?? ((value: number) => value);
-  const fromUniform = options.fromUniform ?? ((value: number) => value);
-
+  const controlLabel = uniform.schema.label ?? label;
+  const min = options.min ?? uniform.schema.min;
+  const max = options.max ?? uniform.schema.max;
+  const step = options.step ?? uniform.schema.step;
   const params = {
-    [label]: fromUniform(uniform.get()),
+    [controlLabel]: uniform.get(),
   };
 
   return gui
-    .add(params, label, options.min, options.max, options.step)
+    .add(params, controlLabel, min, max, step)
     .onChange((value: number) => {
-      uniform.set(toUniform(value));
+      uniform.set(value);
     });
 }

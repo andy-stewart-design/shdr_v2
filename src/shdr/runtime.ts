@@ -1,23 +1,36 @@
 import { compileFragment, type FragmentFn } from "./compile.ts";
 import {
+  createRuntimeUniforms,
   validateUniformMap,
+  type InternalRuntimeUniforms,
+  type RuntimeUniforms,
   type Uniform,
   type UniformMap,
+  type UniformSchema,
 } from "./uniform.ts";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export interface ShaderOptions<U extends UniformMap = UniformMap> {
+type UniformInput = UniformSchema | UniformMap;
+
+type ShaderRuntimeUniforms<U extends UniformInput> = U extends UniformSchema
+  ? RuntimeUniforms<U>
+  : U;
+
+type InternalShaderRuntimeUniforms<U extends UniformInput> =
+  U extends UniformSchema ? InternalRuntimeUniforms<U> : U;
+
+export interface ShaderOptions<U extends UniformInput = UniformSchema> {
   canvas: HTMLCanvasElement;
   fragment: string | FragmentFn<U>;
   uniforms?: U;
 }
 
-export interface ShaderInstance<U extends UniformMap = UniformMap> {
-  /** Custom uniforms passed to createShader. */
-  readonly uniforms: U;
+export interface ShaderInstance<U extends UniformInput = UniformSchema> {
+  /** Live runtime uniform handles. */
+  readonly u: ShaderRuntimeUniforms<U>;
   /** Stop the render loop and free all WebGL resources. */
   destroy(): void;
 }
@@ -74,8 +87,12 @@ function linkProgram(
   return program;
 }
 
+type RuntimeUniformHandle =
+  | Uniform
+  | InternalRuntimeUniforms<UniformSchema>[string];
+
 type RuntimeUniform = {
-  uniform: Uniform;
+  uniform: RuntimeUniformHandle;
   location: WebGLUniformLocation | null;
   /** Bind the sampler unit — cheap, called every frame to survive program re-links. */
   bindSampler?(): void;
@@ -87,12 +104,14 @@ function makeRuntimeUniform(
   gl: WebGL2RenderingContext,
   program: WebGLProgram,
   name: string,
-  uniform: Uniform,
+  uniform: RuntimeUniformHandle,
   textureUnit: number,
 ): RuntimeUniform {
   const location = gl.getUniformLocation(program, `u_${name}`);
 
-  if (uniform.kind === "texture2D") {
+  const uniformType = "schema" in uniform ? uniform.schema.type : uniform.kind;
+
+  if (uniformType === "texture2D") {
     const resolutionLocation = gl.getUniformLocation(
       program,
       `u_${name}_resolution`,
@@ -183,7 +202,7 @@ function makeRuntimeUniform(
     apply() {
       if (!location) return;
       const value = uniform.get();
-      switch (uniform.kind) {
+      switch (uniformType) {
         case "float":
           gl.uniform1f(location, value as number);
           break;
@@ -205,7 +224,11 @@ function makeRuntimeUniform(
 // createShader — compile + run
 // ---------------------------------------------------------------------------
 
-export function createShader<U extends UniformMap = UniformMap>(
+function isUniformSchema(uniforms: UniformInput): uniforms is UniformSchema {
+  return Object.values(uniforms).every((uniform) => "type" in uniform);
+}
+
+export function createShader<U extends UniformInput = UniformSchema>(
   options: ShaderOptions<U>,
 ): ShaderInstance<U> {
   const { canvas } = options;
@@ -232,16 +255,23 @@ export function createShader<U extends UniformMap = UniformMap>(
   gl.useProgram(program);
 
   let nextTextureUnit = 0;
-  const customUniforms = Object.entries(options.uniforms ?? {}).map(
-    ([name, uniform]) =>
-      makeRuntimeUniform(
-        gl,
-        program,
-        name,
-        uniform,
-        uniform.kind === "texture2D" ? nextTextureUnit++ : 0,
-      ),
-  );
+  const inputUniforms = options.uniforms ?? ({} as U);
+  const liveUniforms = (
+    isUniformSchema(inputUniforms)
+      ? createRuntimeUniforms(inputUniforms)
+      : inputUniforms
+  ) as InternalShaderRuntimeUniforms<U>;
+  const customUniforms = Object.entries(liveUniforms).map(([name, uniform]) => {
+    const uniformType =
+      "schema" in uniform ? uniform.schema.type : uniform.kind;
+    return makeRuntimeUniform(
+      gl,
+      program,
+      name,
+      uniform,
+      uniformType === "texture2D" ? nextTextureUnit++ : 0,
+    );
+  });
 
   // --- Resize handling ---
   // Store pending size from ResizeObserver; apply inside the render loop
@@ -310,7 +340,7 @@ export function createShader<U extends UniformMap = UniformMap>(
 
   // --- Cleanup ---
   return {
-    uniforms: options.uniforms ?? ({} as U),
+    u: liveUniforms as ShaderRuntimeUniforms<U>,
     destroy() {
       destroyed = true;
       cancelAnimationFrame(rafId);

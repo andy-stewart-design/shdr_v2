@@ -343,7 +343,7 @@ export const fragment: FragmentFn = ({ $, vec2, vec3, vec4, sin }) => {
 Generated views:
 
 ```ts
-shader.inspect.views
+shader.inspect.views;
 // ["off", "centeredUv", "wave", "color"]
 ```
 

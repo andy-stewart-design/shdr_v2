@@ -1,5 +1,5 @@
 import type { NODE, GLSL_TYPE } from "./ast.ts";
-import type { UniformMap } from "./uniform.ts";
+import type { UniformMap, UniformSchema } from "./uniform.ts";
 
 // ---------------------------------------------------------------------------
 // AST node types
@@ -211,21 +211,38 @@ export type ConstStatement = {
 
 type UniformExprKind<K> = K extends "texture2D" ? "sampler2D" : K;
 
-type TextureResolutionExprs<U extends UniformMap> = {
-  readonly [K in keyof U as U[K] extends { readonly kind: "texture2D" }
+type UniformShape = UniformSchema | UniformMap;
+
+type UniformSpecType<T> = T extends { readonly type: infer Type }
+  ? Type
+  : T extends { readonly kind: infer Kind }
+    ? Kind
+    : never;
+
+type TextureResolutionExprs<U extends UniformShape> = {
+  readonly [K in keyof U as UniformSpecType<U[K]> extends "texture2D"
     ? `${Extract<K, string>}Resolution`
     : never]: ExprProxy<"vec2">;
 };
 
-export type UniformExprs<U extends UniformMap> = {
-  readonly [K in keyof U]: U[K] extends { readonly kind: infer Kd }
-    ? UniformExprKind<Kd> extends GlslType
-      ? ExprProxy<UniformExprKind<Kd>>
-      : never
-    : never;
+export type TextureUniformExpr = ExprProxy<"sampler2D"> & {
+  readonly resolution: ExprProxy<"vec2">;
+  sample(uv: Expr<"vec2">): ExprProxy<"vec4">;
+  sample(
+    x: Expr<"float"> | number,
+    y: Expr<"float"> | number,
+  ): ExprProxy<"vec4">;
+};
+
+export type UniformExprs<U extends UniformShape> = {
+  readonly [K in keyof U]: UniformSpecType<U[K]> extends "texture2D"
+    ? TextureUniformExpr
+    : UniformExprKind<UniformSpecType<U[K]>> extends GlslType
+      ? ExprProxy<UniformExprKind<UniformSpecType<U[K]>>>
+      : never;
 } & TextureResolutionExprs<U>;
 
-export type ShaderContext<U extends UniformMap = UniformMap> = {
+export type ShaderContext<U extends UniformShape = UniformSchema> = {
   /** Declare a named local variable. */
   let<T extends GlslType>(name: string, value: ExprProxy<T>): ExprProxy<T>;
   /** Declare an auto-named local variable (_v0, _v1, …). */

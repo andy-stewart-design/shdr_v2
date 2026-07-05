@@ -1,12 +1,16 @@
-import { uniform, type FragmentFn } from "../../shdr/index.ts";
+import {
+  compileFragment,
+  defineUniforms,
+  type FragmentFn,
+} from "../../shdr/index.ts";
 
-export const uniforms = {
-  dpi: uniform.float(12),
-  spread: uniform.float(0.625),
-  blur: uniform.float(0),
-};
+export const uniforms = defineUniforms((u) => ({
+  dpi: u.float(12, { min: 2, max: 40, step: 1 }),
+  spread: u.float(0.625, { min: 0.1, max: 1, step: 0.01 }),
+  blur: u.float(0, { min: 0, max: 10, step: 0.1 }),
+}));
 
-export const fragment: FragmentFn<typeof uniforms> = ({
+const _fragment: FragmentFn<typeof uniforms> = ({
   $,
   vec2,
   vec3,
@@ -69,3 +73,6 @@ export const fragment: FragmentFn<typeof uniforms> = ({
 
   $.output(vec4(color, 1.0));
 };
+
+export const fragment = compileFragment(_fragment, { uniforms });
+console.log(fragment);

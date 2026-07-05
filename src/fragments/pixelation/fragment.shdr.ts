@@ -1,23 +1,33 @@
-import { uniform, type FragmentFn } from "../../shdr/index.ts";
+import {
+  compileFragment,
+  defineUniforms,
+  type FragmentFn,
+} from "../../shdr/index.ts";
 
 const DEFAULT_PIXELATION_CSS_PX = 40;
 
-export const uniforms = {
-  texture: uniform.texture2D("https://shdr.andystew.art/abstract.jpg"),
-  // Shader uniform is in physical pixels; GUI displays CSS pixels.
-  pixelation: uniform.float(DEFAULT_PIXELATION_CSS_PX * devicePixelRatio),
-};
+export const uniforms = defineUniforms((u) => ({
+  texture: u.texture2D("https://shdr.andystew.art/abstract.jpg", {
+    label: "Texture",
+    accept: ["png", "jpeg", "webp", "gif"],
+  }),
+  pixelation: u.float(DEFAULT_PIXELATION_CSS_PX * devicePixelRatio, {
+    label: "Pixelation",
+    min: 1,
+    max: 160,
+    step: 1,
+  }),
+}));
 
-export const fragment: FragmentFn<typeof uniforms> = ({
+const _fragment: FragmentFn<typeof uniforms> = ({
   $,
   vec2,
   floor,
   step,
   mix,
   div,
-  texture,
 }) => {
-  const textureAR = $.u.textureResolution.x.div($.u.textureResolution.y);
+  const textureAR = $.u.texture.resolution.x.div($.u.texture.resolution.y);
   const canvasAR = $.resolution.x.div($.resolution.y);
 
   // Branchless object-fit: cover UV adjustment.
@@ -38,5 +48,8 @@ export const fragment: FragmentFn<typeof uniforms> = ({
   const x = dx.mul(floor(adjustedUV.x.div(dx)).add(0.5));
   const y = dy.mul(floor(adjustedUV.y.div(dy)).add(0.5));
 
-  $.output(texture($.u.texture, vec2(x, y)));
+  $.output($.u.texture.sample(x, y));
 };
+
+export const fragment = compileFragment(_fragment, { uniforms });
+console.log(fragment);

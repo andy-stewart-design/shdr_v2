@@ -1,8 +1,8 @@
-import type { FragmentFn } from "../../shdr/index.ts";
+import { compileFragment, type FragmentFn } from "../../shdr/index.ts";
 import { SPACING_FACTOR } from "./constants.ts";
 import { circles } from "./utils.shdr.ts";
 
-export const fragment: FragmentFn = ({
+const _fragment: FragmentFn = ({
   $,
   vec2,
   vec4,
@@ -35,3 +35,6 @@ export const fragment: FragmentFn = ({
 
   $.output(vec4(col.mul(0.9), 1.0));
 };
+
+export const fragment = compileFragment(_fragment);
+console.log(fragment);

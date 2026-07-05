@@ -7,10 +7,14 @@ import { fn, Float, Vec2 } from "../../shdr/index.ts";
  * - 0.0 = no vignette
  * - 1.0 = strong darkening near corners
  */
-export const vignette = fn([Vec2, Float], Float, ([uv, amount], { dot, clamp, pow }) => {
-  const centered = uv.sub(0.5);
-  const dist = dot(centered, centered);
-  const vig = clamp(dist.mul(amount).mul(2.5).neg().add(1.0), 0.0, 1.0);
+export const vignette = fn(
+  [Vec2, Float],
+  Float,
+  ([uv, amount], { dot, clamp, pow }) => {
+    const centered = uv.sub(0.5);
+    const dist = dot(centered, centered);
+    const vig = clamp(dist.mul(amount).mul(2.5).neg().add(1.0), 0.0, 1.0);
 
-  return pow(vig, 1.5);
-});
+    return pow(vig, 1.5);
+  },
+);
