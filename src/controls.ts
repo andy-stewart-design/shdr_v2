@@ -4,7 +4,6 @@ import type {
   ShaderInstance,
   Texture2DUniformSpec,
   TextureFileExtension,
-  Uniform,
   UniformSchema,
 } from "./shdr/index.ts";
 
@@ -46,15 +45,11 @@ function textureAcceptToMime(accept: TextureFileExtension[] | undefined) {
 export function addTextureUploadControl(
   gui: GuiLike,
   label: string,
-  uniform:
-    | RuntimeUniform<string | File | Blob, Texture2DUniformSpec>
-    | Uniform<"texture2D">,
+  uniform: RuntimeUniform<string | File | Blob, Texture2DUniformSpec>,
 ) {
   const input = document.createElement("input");
   input.type = "file";
-  input.accept = textureAcceptToMime(
-    "schema" in uniform ? uniform.schema.accept : undefined,
-  );
+  input.accept = textureAcceptToMime(uniform.schema.accept);
   input.style.display = "none";
   document.body.appendChild(input);
 
@@ -78,9 +73,7 @@ export function addTextureUploadControl(
 export function addStringUniformControl(
   gui: GuiLike,
   label: string,
-  uniform:
-    | RuntimeUniform<string | File | Blob, Texture2DUniformSpec>
-    | Uniform<"texture2D">,
+  uniform: RuntimeUniform<string | File | Blob, Texture2DUniformSpec>,
 ) {
   const params = {
     [label]: uniform.get(),
@@ -123,29 +116,24 @@ export function addUniformControls<U extends UniformSchema>(
 export function addFloatUniformControl(
   gui: GuiLike,
   label: string,
-  uniform: RuntimeUniform<number, FloatUniformSpec> | Uniform<"float">,
+  uniform: RuntimeUniform<number, FloatUniformSpec>,
   options: {
     min?: number;
     max?: number;
     step?: number;
-    toUniform?: (value: number) => number;
-    fromUniform?: (value: number) => number;
   } = {},
 ) {
-  const schema = "schema" in uniform ? uniform.schema : undefined;
-  const controlLabel = schema?.label ?? label;
-  const min = options.min ?? schema?.min;
-  const max = options.max ?? schema?.max;
-  const step = options.step ?? schema?.step;
-  const toUniform = options.toUniform ?? ((value: number) => value);
-  const fromUniform = options.fromUniform ?? ((value: number) => value);
+  const controlLabel = uniform.schema.label ?? label;
+  const min = options.min ?? uniform.schema.min;
+  const max = options.max ?? uniform.schema.max;
+  const step = options.step ?? uniform.schema.step;
   const params = {
-    [controlLabel]: fromUniform(uniform.get()),
+    [controlLabel]: uniform.get(),
   };
 
   return gui
     .add(params, controlLabel, min, max, step)
     .onChange((value: number) => {
-      uniform.set(toUniform(value));
+      uniform.set(value);
     });
 }

@@ -540,9 +540,9 @@ If internal helpers are still useful, keep them internal and rename to avoid pub
 
 **Acceptance criteria:**
 
-- [ ] Public API exports schema helpers, not runtime uniform factories.
-- [ ] No repo code imports old `uniform` authoring helper.
-- [ ] `pnpm check` passes.
+- [x] Public API exports schema helpers, not runtime uniform factories.
+- [x] No repo code imports old `uniform` authoring helper.
+- [x] `pnpm check` passes.
 
 ---
 
