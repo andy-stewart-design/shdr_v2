@@ -307,10 +307,10 @@ shader.u.dpi.get();
 
 **Acceptance criteria:**
 
-- [ ] `ShaderInstance<typeof uniforms>["u"]` is typed from schema.
-- [ ] `shader.u.dpi.set(...)` works.
-- [ ] `shader.u.texture.set(file)` works.
-- [ ] `shader.uniforms` no longer exists.
+- [x] `ShaderInstance<typeof uniforms>["u"]` is typed from schema.
+- [x] `shader.u.dpi.set(...)` works.
+- [x] `shader.u.texture.set(file)` works.
+- [x] `shader.uniforms` no longer exists.
 
 ---
 
