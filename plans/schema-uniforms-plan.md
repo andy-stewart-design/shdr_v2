@@ -203,9 +203,9 @@ $.u.textureResolution -> ExprProxy<"vec2">
 
 **Acceptance criteria:**
 
-- [ ] `FragmentFn<typeof uniforms>` correctly types `$.u.dpi` as `ExprProxy<"float">`.
-- [ ] `$.u.texture` is typed as `ExprProxy<"sampler2D">`.
-- [ ] `$.u.textureResolution` is typed as `ExprProxy<"vec2">`.
+- [x] `FragmentFn<typeof uniforms>` correctly types `$.u.dpi` as `ExprProxy<"float">`.
+- [x] `$.u.texture` is typed as `ExprProxy<"sampler2D">`.
+- [x] `$.u.textureResolution` is typed as `ExprProxy<"vec2">`.
 
 ---
 
