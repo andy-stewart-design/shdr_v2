@@ -1,9 +1,11 @@
 import type {
   FloatUniformSpec,
   RuntimeUniform,
+  ShaderInstance,
   Texture2DUniformSpec,
   TextureFileExtension,
   Uniform,
+  UniformSchema,
 } from "./shdr/index.ts";
 
 type GuiLike = {
@@ -87,6 +89,35 @@ export function addStringUniformControl(
   return gui.add(params, label).onChange((value: string) => {
     uniform.set(value);
   });
+}
+
+export function addUniformControls<U extends UniformSchema>(
+  gui: GuiLike,
+  shader: ShaderInstance<U>,
+) {
+  for (const [key, uniform] of Object.entries(shader.u)) {
+    switch (uniform.schema.type) {
+      case "float":
+        addFloatUniformControl(
+          gui,
+          uniform.schema.label ?? key,
+          uniform as RuntimeUniform<number, FloatUniformSpec>,
+        );
+        break;
+      case "texture2D":
+        addStringUniformControl(
+          gui,
+          uniform.schema.label ?? key,
+          uniform as RuntimeUniform<string | File | Blob, Texture2DUniformSpec>,
+        );
+        addTextureUploadControl(
+          gui,
+          `Upload ${uniform.schema.label ?? key}`,
+          uniform as RuntimeUniform<string | File | Blob, Texture2DUniformSpec>,
+        );
+        break;
+    }
+  }
 }
 
 export function addFloatUniformControl(

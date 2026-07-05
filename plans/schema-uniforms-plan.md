@@ -396,9 +396,9 @@ Behavior:
 
 **Acceptance criteria:**
 
-- [ ] Ben Day can wire controls with `addUniformControls(gui, shader)`.
-- [ ] Pixelation can wire texture + pixelation controls with `addUniformControls(gui, shader)`.
-- [ ] Unsupported vector controls are either skipped cleanly or minimally supported.
+- [x] Ben Day can wire controls with `addUniformControls(gui, shader)`.
+- [x] Pixelation can wire texture + pixelation controls with `addUniformControls(gui, shader)`.
+- [x] Unsupported vector controls are either skipped cleanly or minimally supported.
 
 ---
 
