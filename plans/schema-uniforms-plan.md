@@ -173,9 +173,9 @@ texture2D;
 
 **Acceptance criteria:**
 
-- [ ] Invalid names throw clear errors.
-- [ ] Invalid `type` values throw clear errors.
-- [ ] Existing name collision tests/manual checks still behave as before.
+- [x] Invalid names throw clear errors.
+- [x] Invalid `type` values throw clear errors.
+- [x] Existing name collision tests/manual checks still behave as before.
 
 ---
 

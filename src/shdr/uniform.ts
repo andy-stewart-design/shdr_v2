@@ -173,6 +173,14 @@ export function uniformKindToGlslType(kind: UniformKind): GlslType {
   return kind === "texture2D" ? "sampler2D" : kind;
 }
 
+const UNIFORM_TYPES = new Set<UniformKind>([
+  "float",
+  "vec2",
+  "vec3",
+  "vec4",
+  "texture2D",
+]);
+
 const RESERVED_UNIFORM_KEYS = new Set([
   "time",
   "resolution",
@@ -182,10 +190,12 @@ const RESERVED_UNIFORM_KEYS = new Set([
   "u",
 ]);
 
-export function validateUniformMap(uniforms: UniformMap | undefined): void {
+export function validateUniformMap(
+  uniforms: UniformSchema | UniformMap | undefined,
+): void {
   if (!uniforms) return;
 
-  for (const key of Object.keys(uniforms)) {
+  for (const [key, spec] of Object.entries(uniforms)) {
     if (key.startsWith("u_")) {
       throw new Error(
         `Custom uniform key "${key}" should not include the "u_" prefix. Use "${key.slice(2)}"; it will compile to "${key}".`,
@@ -193,6 +203,13 @@ export function validateUniformMap(uniforms: UniformMap | undefined): void {
     }
     if (RESERVED_UNIFORM_KEYS.has(key)) {
       throw new Error(`Custom uniform key "${key}" is reserved.`);
+    }
+
+    const type = "type" in spec ? spec.type : spec.kind;
+    if (!UNIFORM_TYPES.has(type)) {
+      throw new Error(
+        `Custom uniform "${key}" has invalid type "${String(type)}". Expected one of: ${[...UNIFORM_TYPES].join(", ")}.`,
+      );
     }
   }
 }
