@@ -236,9 +236,9 @@ texture2D -> uniform sampler2D u_name;
 
 **Acceptance criteria:**
 
-- [ ] Generated GLSL for existing uniform shaders is unchanged except implementation details.
-- [ ] Texture uniforms still emit sampler + resolution.
-- [ ] Unknown `$.u.foo` still throws a clear compile-time/runtime compilation error.
+- [x] Generated GLSL for existing uniform shaders is unchanged except implementation details.
+- [x] Texture uniforms still emit sampler + resolution.
+- [x] Unknown `$.u.foo` still throws a clear compile-time/runtime compilation error.
 
 ---
 

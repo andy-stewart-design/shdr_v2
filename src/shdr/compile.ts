@@ -30,7 +30,7 @@ import {
   texture,
 } from "./builtins.ts";
 import { uniformKindToGlslType, validateUniformMap } from "./uniform.ts";
-import type { UniformMap } from "./uniform.ts";
+import type { UniformKind, UniformMap, UniformSchema } from "./uniform.ts";
 import type {
   AstNode,
   BodyStatement,
@@ -191,7 +191,13 @@ export type Builtins = {
   max: typeof max;
 };
 
-export type FragmentFn<U extends UniformMap = UniformMap> = (
+type UniformShape = UniformSchema | UniformMap;
+
+function getUniformType(uniform: UniformShape[string]): UniformKind {
+  return "type" in uniform ? uniform.type : uniform.kind;
+}
+
+export type FragmentFn<U extends UniformShape = UniformSchema> = (
   ctx: {
     $: ShaderContext<U>;
   } & Builtins,
@@ -214,7 +220,7 @@ export const glslKeyword: Record<GlslType, string> = {
 // compileFragment — DSL function → GLSL string
 // ---------------------------------------------------------------------------
 
-export function compileFragment<U extends UniformMap = UniformMap>(
+export function compileFragment<U extends UniformShape = UniformSchema>(
   fn: FragmentFn<U>,
   options: { uniforms?: U } = {},
 ): string {
@@ -246,7 +252,7 @@ export function compileFragment<U extends UniformMap = UniformMap>(
   }
 
   let varCounter = 0;
-  const customUniforms: UniformMap = options.uniforms ?? {};
+  const customUniforms: UniformShape = options.uniforms ?? {};
 
   const $: ShaderContext<U> = {
     let<T extends GlslType>(
@@ -279,12 +285,18 @@ export function compileFragment<U extends UniformMap = UniformMap>(
           if (typeof prop !== "string") return undefined;
           const uniform = customUniforms[prop];
           if (uniform) {
-            return refProxy([`u_${prop}`], uniformKindToGlslType(uniform.kind));
+            return refProxy(
+              [`u_${prop}`],
+              uniformKindToGlslType(getUniformType(uniform)),
+            );
           }
           if (prop.endsWith("Resolution")) {
             const base = prop.slice(0, -"Resolution".length);
             const textureUniform = customUniforms[base];
-            if (textureUniform?.kind === "texture2D") {
+            if (
+              textureUniform &&
+              getUniformType(textureUniform) === "texture2D"
+            ) {
               return refProxy([`u_${base}_resolution`], "vec2");
             }
           }
@@ -349,11 +361,12 @@ export function compileFragment<U extends UniformMap = UniformMap>(
     "uniform float u_time;",
     "uniform vec2 u_resolution;",
     "uniform vec2 u_mouse;",
-    ...Object.entries(customUniforms).flatMap(([name, uniform]) =>
-      uniform.kind === "texture2D"
+    ...Object.entries(customUniforms).flatMap(([name, uniform]) => {
+      const type = getUniformType(uniform);
+      return type === "texture2D"
         ? [`uniform sampler2D u_${name};`, `uniform vec2 u_${name}_resolution;`]
-        : [`uniform ${glslKeyword[uniform.kind]} u_${name};`],
-    ),
+        : [`uniform ${glslKeyword[type]} u_${name};`];
+    }),
     "out vec4 fragColor;",
     ...(constants.length > 0 ? [""] : []),
     ...constants.map(
