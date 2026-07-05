@@ -430,9 +430,9 @@ addUniformControls(gui, shader);
 
 **Acceptance criteria:**
 
-- [ ] Shader renders.
-- [ ] Controls work.
-- [ ] `pnpm check` passes.
+- [x] Shader renders.
+- [x] Controls work.
+- [x] `pnpm check` passes.
 
 ---
 
