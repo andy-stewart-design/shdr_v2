@@ -522,8 +522,8 @@ Document:
 
 **Acceptance criteria:**
 
-- [ ] README no longer recommends old runtime-uniform authoring API.
-- [ ] README includes `shader.u.dpi.set(...)` example.
+- [x] README no longer recommends old runtime-uniform authoring API.
+- [x] README includes `shader.u.dpi.set(...)` example.
 
 ---
 

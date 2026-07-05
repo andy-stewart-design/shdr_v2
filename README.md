@@ -72,11 +72,11 @@ You do **not** need to wrap every number. Numeric arguments are accepted by expr
 ## Custom uniforms
 
 ```ts
-import { createShader, uniform, type FragmentFn } from "./shdr/index.ts";
+import { createShader, defineUniforms, type FragmentFn } from "./shdr/index.ts";
 
-const uniforms = {
-  pixelation: uniform.float(40),
-};
+const uniforms = defineUniforms((u) => ({
+  pixelation: u.float(40, { min: 1, max: 160, step: 1 }),
+}));
 
 const fragment: FragmentFn<typeof uniforms> = ({ $, vec4 }) => {
   const amount = $.u.pixelation;
@@ -84,18 +84,20 @@ const fragment: FragmentFn<typeof uniforms> = ({ $, vec4 }) => {
 };
 
 const shader = createShader({ canvas, fragment, uniforms });
-shader.uniforms.pixelation.set(24);
+shader.u.pixelation.set(24);
 ```
 
-Supported uniform helpers:
+Supported schema helpers:
 
 ```ts
-uniform.float(1);
-uniform.vec2([1, 2]);
-uniform.vec3([1, 2, 3]);
-uniform.vec4([1, 2, 3, 4]);
-uniform.texture2D("/image.jpg");
+u.float(1);
+u.vec2([1, 2]);
+u.vec3([1, 2, 3]);
+u.vec4([1, 2, 3, 4]);
+u.texture2D("/image.jpg", { accept: ["png", "jpeg", "webp", "gif"] });
 ```
+
+Longform schemas are also supported with `satisfies UniformSchema`.
 
 Texture uniforms expose both the sampler and resolution:
 
@@ -104,7 +106,7 @@ texture($.u.texture, $.uv); // samples u_texture
 $.u.textureResolution; // vec2, u_texture_resolution
 ```
 
-`uniform.texture2D(...)` accepts URL strings and local `File` / `Blob` values.
+`u.texture2D(...)` accepts URL strings and local `File` / `Blob` values. Texture `accept` metadata uses file extensions such as `"png"`, `"jpeg"`, `"webp"`, and `"gif"`.
 
 ## Reusable shader functions
 
