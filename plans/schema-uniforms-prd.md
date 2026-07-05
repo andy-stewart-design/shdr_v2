@@ -501,9 +501,9 @@ to avoid type widening.
 Public runtime handles expose:
 
 ```ts
-schema
-get()
-set(value)
+schema;
+get();
+set(value);
 ```
 
 The renderer owns upload scheduling and dirty tracking.
@@ -526,7 +526,7 @@ For each texture uniform, controls should include:
 Default accepted file extensions:
 
 ```ts
-["png", "jpg", "jpeg", "webp", "gif"]
+["png", "jpg", "jpeg", "webp", "gif"];
 ```
 
 ### Old `uniform.*` API
