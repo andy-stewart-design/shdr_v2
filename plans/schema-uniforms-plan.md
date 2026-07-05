@@ -464,10 +464,10 @@ Remove `toUniform` / `fromUniform` usage.
 
 **Acceptance criteria:**
 
-- [ ] Shader renders.
-- [ ] URL texture control works.
-- [ ] Upload texture control works.
-- [ ] Pixelation control works using physical-pixel value.
+- [x] Shader renders.
+- [x] URL texture control works.
+- [x] Upload texture control works.
+- [x] Pixelation control works using physical-pixel value.
 
 ---
 
