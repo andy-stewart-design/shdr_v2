@@ -1,5 +1,5 @@
-import { fn, Float, Vec2, Vec3 } from "../../shdr/index.ts";
-import { TAU, EP, SPACING_FACTOR } from "./constants.ts";
+import { fn, Float, Vec2, Vec3 } from "@shdr/index";
+import { TAU, EP, SPACING_FACTOR } from "./constants";
 
 // ── Helper functions ──────────────────────────────────────────────────────────
 

@@ -1,8 +1,8 @@
-import { filmGrain } from "../utils/grain.shdr.ts";
-import { noise } from "../utils/noise.shdr.ts";
-import { vignette } from "../utils/vignette.shdr.ts";
-import { rot } from "../utils/rotate.shdr.ts";
-import { compileFragment, type FragmentFn } from "../../shdr/index.ts";
+import { filmGrain } from "@/fragments/utils/grain.shdr";
+import { noise } from "@/fragments/utils/noise.shdr";
+import { vignette } from "@/fragments/utils/vignette.shdr";
+import { rot } from "@/fragments/utils/rotate.shdr";
+import { compileFragment, type FragmentFn } from "@shdr/index";
 
 const _fragment: FragmentFn = ({
   $,

@@ -1,8 +1,4 @@
-import {
-  compileFragment,
-  defineUniforms,
-  type FragmentFn,
-} from "../../shdr/index.ts";
+import { compileFragment, defineUniforms, type FragmentFn } from "@shdr/index";
 
 const DEFAULT_PIXELATION_CSS_PX = 40;
 

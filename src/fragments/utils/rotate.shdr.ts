@@ -1,4 +1,4 @@
-import { fn, Float, Mat2 } from "../../shdr/index.ts";
+import { fn, Float, Mat2 } from "@shdr/index";
 
 export const rot = fn([Float], Mat2, ([a], { sin, cos, mat2 }) => {
   const s = sin(a);

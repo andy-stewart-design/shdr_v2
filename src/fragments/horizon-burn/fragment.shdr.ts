@@ -1,11 +1,5 @@
-import {
-  compileFragment,
-  fn,
-  Float,
-  Vec3,
-  type FragmentFn,
-} from "../../shdr/index.ts";
-import { filmGrain } from "../utils/grain.shdr.ts";
+import { compileFragment, fn, Float, Vec3, type FragmentFn } from "@shdr/index";
+import { filmGrain } from "@/fragments/utils/grain.shdr";
 
 // Inigo Quilez cosine palette — https://iquilezles.org/articles/palettes/
 const palette = fn([Float], Vec3, ([t], { cos, vec3 }) => {

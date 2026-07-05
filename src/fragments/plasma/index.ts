@@ -1,6 +1,6 @@
-import { addUniformControls } from "../../controls.ts";
-import { createShader } from "../../shdr/index.ts";
-import { fragment, uniforms } from "./fragment.shdr.ts";
+import { addUniformControls } from "@/controls";
+import { createShader } from "@shdr/index";
+import { fragment, uniforms } from "./fragment.shdr";
 import type GUI from "lil-gui";
 
 export function setup(canvas: HTMLCanvasElement, gui: GUI) {

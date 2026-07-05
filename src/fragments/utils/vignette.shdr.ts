@@ -1,4 +1,4 @@
-import { fn, Float, Vec2 } from "../../shdr/index.ts";
+import { fn, Float, Vec2 } from "@shdr/index";
 
 /**
  * Returns a vignette multiplier for normalized UV coordinates.

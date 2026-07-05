@@ -1,5 +1,5 @@
-import { fn, Float, Vec2 } from "../../shdr/index.ts";
-import { hash } from "./hash.shdr.ts";
+import { fn, Float, Vec2 } from "@shdr/index";
+import { hash } from "./hash.shdr";
 
 export const noise = fn([Vec2], Float, ([p], ctx) => {
   const { floor, fract, vec2, mix, dot } = ctx;

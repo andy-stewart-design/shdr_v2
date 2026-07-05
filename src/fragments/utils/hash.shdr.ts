@@ -1,4 +1,4 @@
-import { fn, Vec2 } from "../../shdr";
+import { fn, Vec2 } from "@shdr/index";
 
 export const hash = fn([Vec2], Vec2, ([p], ctx) => {
   const { vec2, dot, fract, sin } = ctx;
