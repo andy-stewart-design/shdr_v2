@@ -1,4 +1,10 @@
-import type { Uniform } from "./shdr/index.ts";
+import type {
+  FloatUniformSpec,
+  RuntimeUniform,
+  Texture2DUniformSpec,
+  TextureFileExtension,
+  Uniform,
+} from "./shdr/index.ts";
 
 type GuiLike = {
   add(
@@ -13,14 +19,40 @@ type GuiLike = {
   };
 };
 
+const DEFAULT_TEXTURE_ACCEPT: TextureFileExtension[] = [
+  "png",
+  "jpg",
+  "jpeg",
+  "webp",
+  "gif",
+];
+
+const MIME_BY_EXTENSION: Record<TextureFileExtension, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+  gif: "image/gif",
+};
+
+function textureAcceptToMime(accept: TextureFileExtension[] | undefined) {
+  return (accept ?? DEFAULT_TEXTURE_ACCEPT)
+    .map((extension) => MIME_BY_EXTENSION[extension])
+    .join(",");
+}
+
 export function addTextureUploadControl(
   gui: GuiLike,
   label: string,
-  uniform: Uniform<"texture2D">,
+  uniform:
+    | RuntimeUniform<string | File | Blob, Texture2DUniformSpec>
+    | Uniform<"texture2D">,
 ) {
   const input = document.createElement("input");
   input.type = "file";
-  input.accept = "image/png,image/jpeg,image/webp,image/gif";
+  input.accept = textureAcceptToMime(
+    "schema" in uniform ? uniform.schema.accept : undefined,
+  );
   input.style.display = "none";
   document.body.appendChild(input);
 
@@ -44,7 +76,9 @@ export function addTextureUploadControl(
 export function addStringUniformControl(
   gui: GuiLike,
   label: string,
-  uniform: Uniform<"texture2D">,
+  uniform:
+    | RuntimeUniform<string | File | Blob, Texture2DUniformSpec>
+    | Uniform<"texture2D">,
 ) {
   const params = {
     [label]: uniform.get(),
@@ -58,26 +92,28 @@ export function addStringUniformControl(
 export function addFloatUniformControl(
   gui: GuiLike,
   label: string,
-  uniform: Uniform<"float">,
+  uniform: RuntimeUniform<number, FloatUniformSpec> | Uniform<"float">,
   options: {
     min?: number;
     max?: number;
     step?: number;
-    /** Convert the GUI value before writing it to the shader uniform. */
     toUniform?: (value: number) => number;
-    /** Convert the current shader uniform value into the displayed GUI value. */
     fromUniform?: (value: number) => number;
   } = {},
 ) {
+  const schema = "schema" in uniform ? uniform.schema : undefined;
+  const controlLabel = schema?.label ?? label;
+  const min = options.min ?? schema?.min;
+  const max = options.max ?? schema?.max;
+  const step = options.step ?? schema?.step;
   const toUniform = options.toUniform ?? ((value: number) => value);
   const fromUniform = options.fromUniform ?? ((value: number) => value);
-
   const params = {
-    [label]: fromUniform(uniform.get()),
+    [controlLabel]: fromUniform(uniform.get()),
   };
 
   return gui
-    .add(params, label, options.min, options.max, options.step)
+    .add(params, controlLabel, min, max, step)
     .onChange((value: number) => {
       uniform.set(toUniform(value));
     });

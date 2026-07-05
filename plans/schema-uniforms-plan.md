@@ -370,9 +370,9 @@ If explicit options are still supported, they should override schema metadata.
 
 **Acceptance criteria:**
 
-- [ ] Float controls use `schema.label`, `schema.min`, `schema.max`, `schema.step` by default.
-- [ ] Texture upload control maps `schema.accept` extensions to MIME accept strings.
-- [ ] Existing sketch controls work after migration.
+- [x] Float controls use `schema.label`, `schema.min`, `schema.max`, `schema.step` by default.
+- [x] Texture upload control maps `schema.accept` extensions to MIME accept strings.
+- [x] Existing sketch controls work after migration.
 
 ---
 
