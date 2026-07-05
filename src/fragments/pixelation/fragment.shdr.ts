@@ -48,7 +48,7 @@ const _fragment: FragmentFn<typeof uniforms> = ({
   const x = dx.mul(floor(adjustedUV.x.div(dx)).add(0.5));
   const y = dy.mul(floor(adjustedUV.y.div(dy)).add(0.5));
 
-  $.output($.u.texture.sample(vec2(x, y)));
+  $.output($.u.texture.sample(x, y));
 };
 
 export const fragment = compileFragment(_fragment, { uniforms });

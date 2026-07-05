@@ -205,7 +205,14 @@ function textureUniformProxy(name: string): TextureUniformExpr {
       if (prop === "resolution")
         return refProxy([`u_${name}_resolution`], "vec2");
       if (prop === "sample") {
-        return (uv: Expr<"vec2">) => texture(sampler, uv);
+        return (
+          ...args:
+            | [Expr<"vec2">]
+            | [Expr<"float"> | number, Expr<"float"> | number]
+        ) => {
+          const uv = args.length === 1 ? args[0] : vec2(args[0], args[1]);
+          return texture(sampler, uv);
+        };
       }
       return Reflect.get(target, prop, receiver);
     },

@@ -228,6 +228,10 @@ type TextureResolutionExprs<U extends UniformShape> = {
 export type TextureUniformExpr = ExprProxy<"sampler2D"> & {
   readonly resolution: ExprProxy<"vec2">;
   sample(uv: Expr<"vec2">): ExprProxy<"vec4">;
+  sample(
+    x: Expr<"float"> | number,
+    y: Expr<"float"> | number,
+  ): ExprProxy<"vec4">;
 };
 
 export type UniformExprs<U extends UniformShape> = {
