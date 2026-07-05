@@ -1,4 +1,8 @@
-import { defineUniforms, type FragmentFn } from "../../shdr/index.ts";
+import {
+  compileFragment,
+  defineUniforms,
+  type FragmentFn,
+} from "../../shdr/index.ts";
 import { filmGrain } from "../utils/grain.shdr.ts";
 
 export const uniforms = defineUniforms((u) => ({
@@ -10,7 +14,7 @@ export const uniforms = defineUniforms((u) => ({
   colorB: u.vec3([0.9, 0.2, 0.5]),
 }));
 
-export const fragment: FragmentFn<typeof uniforms> = ({
+const _fragment: FragmentFn<typeof uniforms> = ({
   $,
   vec2,
   vec4,
@@ -45,3 +49,6 @@ export const fragment: FragmentFn<typeof uniforms> = ({
 
   $.output(vec4(finalColor, 1.0));
 };
+
+export const fragment = compileFragment(_fragment, { uniforms });
+console.log(fragment);

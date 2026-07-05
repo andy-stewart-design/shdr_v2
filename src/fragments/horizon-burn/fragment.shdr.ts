@@ -1,4 +1,10 @@
-import { fn, Float, Vec3, type FragmentFn } from "../../shdr/index.ts";
+import {
+  compileFragment,
+  fn,
+  Float,
+  Vec3,
+  type FragmentFn,
+} from "../../shdr/index.ts";
 import { filmGrain } from "../utils/grain.shdr.ts";
 
 // Inigo Quilez cosine palette — https://iquilezles.org/articles/palettes/
@@ -11,7 +17,7 @@ const palette = fn([Float], Vec3, ([t], { cos, vec3 }) => {
   return a.add(b.mul(cos(c.mul(t).add(d).mul(6.28318))));
 });
 
-export const fragment: FragmentFn = ({ $, vec2, vec3, vec4, sin, mix }) => {
+const _fragment: FragmentFn = ({ $, vec2, vec3, vec4, sin, mix }) => {
   const GRAIN_AMOUNT = 0.1;
   const DITHER_AMOUNT = 0.005;
   const DITHER_SEED = 123.456;
@@ -39,3 +45,6 @@ export const fragment: FragmentFn = ({ $, vec2, vec3, vec4, sin, mix }) => {
 
   $.output(vec4(finalColor, 1.0));
 };
+
+export const fragment = compileFragment(_fragment);
+console.log(fragment);

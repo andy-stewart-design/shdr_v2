@@ -2,9 +2,9 @@ import { filmGrain } from "../utils/grain.shdr.ts";
 import { noise } from "../utils/noise.shdr.ts";
 import { vignette } from "../utils/vignette.shdr.ts";
 import { rot } from "../utils/rotate.shdr.ts";
-import type { FragmentFn } from "../../shdr/index.ts";
+import { compileFragment, type FragmentFn } from "../../shdr/index.ts";
 
-export const fragment: FragmentFn = ({
+const _fragment: FragmentFn = ({
   $,
   vec2,
   vec3,
@@ -77,3 +77,6 @@ export const fragment: FragmentFn = ({
 
   $.output(vec4(finalColor, 1.0));
 };
+
+export const fragment = compileFragment(_fragment);
+console.log(fragment);

@@ -1,4 +1,8 @@
-import { defineUniforms, type FragmentFn } from "../../shdr/index.ts";
+import {
+  compileFragment,
+  defineUniforms,
+  type FragmentFn,
+} from "../../shdr/index.ts";
 
 const DEFAULT_PIXELATION_CSS_PX = 40;
 
@@ -15,7 +19,7 @@ export const uniforms = defineUniforms((u) => ({
   }),
 }));
 
-export const fragment: FragmentFn<typeof uniforms> = ({
+const _fragment: FragmentFn<typeof uniforms> = ({
   $,
   vec2,
   floor,
@@ -47,3 +51,6 @@ export const fragment: FragmentFn<typeof uniforms> = ({
 
   $.output(texture($.u.texture, vec2(x, y)));
 };
+
+export const fragment = compileFragment(_fragment, { uniforms });
+console.log(fragment);
