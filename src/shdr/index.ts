@@ -9,6 +9,15 @@ export type {
   UniformKind,
   UniformValue,
   TextureSource,
+  TextureFileExtension,
+  BaseUniformSpec,
+  FloatUniformSpec,
+  Vec2UniformSpec,
+  Vec3UniformSpec,
+  Vec4UniformSpec,
+  Texture2DUniformSpec,
+  UniformSpec,
+  UniformSchema,
 } from "./uniform.ts";
 export type { FragmentFn, Builtins } from "./compile.ts";
 export type {

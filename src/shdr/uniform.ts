@@ -3,6 +3,42 @@ import type { GlslType } from "./types.ts";
 export type UniformKind = "float" | "vec2" | "vec3" | "vec4" | "texture2D";
 
 export type TextureSource = string | File | Blob;
+export type TextureFileExtension = "png" | "jpg" | "jpeg" | "webp" | "gif";
+
+export type BaseUniformSpec<TType extends string, TValue> = {
+  type: TType;
+  value: TValue;
+  label?: string;
+};
+
+export type FloatUniformSpec = BaseUniformSpec<"float", number> & {
+  min?: number;
+  max?: number;
+  step?: number;
+};
+
+export type Vec2UniformSpec = BaseUniformSpec<"vec2", [number, number]>;
+export type Vec3UniformSpec = BaseUniformSpec<"vec3", [number, number, number]>;
+export type Vec4UniformSpec = BaseUniformSpec<
+  "vec4",
+  [number, number, number, number]
+>;
+
+export type Texture2DUniformSpec = BaseUniformSpec<
+  "texture2D",
+  TextureSource
+> & {
+  accept?: TextureFileExtension[];
+};
+
+export type UniformSpec =
+  | FloatUniformSpec
+  | Vec2UniformSpec
+  | Vec3UniformSpec
+  | Vec4UniformSpec
+  | Texture2DUniformSpec;
+
+export type UniformSchema = Record<string, UniformSpec>;
 
 export type UniformValue<K extends UniformKind = UniformKind> =
   K extends "float"

@@ -86,9 +86,9 @@ TextureFileExtension;
 
 **Acceptance criteria:**
 
-- [ ] `UniformSchema` is exported from `src/shdr/index.ts`.
-- [ ] Existing code can import `type UniformSchema`.
-- [ ] `pnpm check` passes after types are introduced, before migration.
+- [x] `UniformSchema` is exported from `src/shdr/index.ts`.
+- [x] Existing code can import `type UniformSchema`.
+- [x] `pnpm check` passes after types are introduced, before migration.
 
 ---
 
