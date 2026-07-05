@@ -557,12 +557,12 @@ pnpm build
 
 Manual smoke tests:
 
-- [ ] Ben Day Spotlight controls
-- [ ] Pixelation URL texture
-- [ ] Pixelation uploaded texture
-- [ ] Moby Gradient
-- [ ] Circles
-- [ ] Horizon Burn
+- [x] Ben Day Spotlight controls
+- [x] Pixelation URL texture
+- [x] Pixelation uploaded texture
+- [x] Moby Gradient
+- [x] Circles
+- [x] Horizon Burn
 
 Inspect generated GLSL for at least one uniform fragment and verify uniform declarations are unchanged:
 
