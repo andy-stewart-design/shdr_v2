@@ -271,9 +271,9 @@ but that should not be part of the public type unless needed.
 
 **Acceptance criteria:**
 
-- [ ] Runtime handles expose `.schema`, `.get()`, `.set()`.
-- [ ] Dirty tracking still works internally.
-- [ ] `.set(sameValue)` does not mark scalar/vector uniforms dirty.
+- [x] Runtime handles expose `.schema`, `.get()`, `.set()`.
+- [x] Dirty tracking still works internally.
+- [x] `.set(sameValue)` does not mark scalar/vector uniforms dirty.
 
 ---
 

@@ -22,6 +22,8 @@ export type {
   VecUniformOptions,
   TextureUniformOptions,
   UniformSpecHelpers,
+  RuntimeUniform,
+  RuntimeUniforms,
 } from "./uniform.ts";
 export type { FragmentFn, Builtins } from "./compile.ts";
 export type {
