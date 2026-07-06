@@ -2,15 +2,22 @@ import { makeCall, makeProxy, glslTypeOf, toNode } from "./ast.ts";
 import type { Expr, ExprProxy, GlslType } from "./types.ts";
 
 type FloatArg = Expr<"float"> | number;
-// type GenFloatType = "float" | "vec2" | "vec3" | "vec4";
-type GenFloatExpr = Expr<"float"> | Expr<"vec2"> | Expr<"vec3"> | Expr<"vec4">;
-// type GenFloatProxy =
-//   | ExprProxy<"float">
-//   | ExprProxy<"vec2">
-//   | ExprProxy<"vec3">
-//   | ExprProxy<"vec4">;
+type GenFloatType = "float" | "vec2" | "vec3" | "vec4";
+type GenFloatExpr<T extends GenFloatType = GenFloatType> = Expr<T>;
+type GenFloatArg<T extends GenFloatType> = T extends "float"
+  ? Expr<"float"> | number
+  : Expr<T>;
+type ScalarCompatible<T extends GenFloatType> = GenFloatArg<T> | FloatArg;
+type GenFloatValue = GenFloatExpr | number;
+type GenFloatTypeOf<A> = A extends number
+  ? "float"
+  : A extends Expr<infer T>
+    ? Extract<T, GenFloatType>
+    : never;
+type PromotedGenFloat<A, B> =
+  GenFloatTypeOf<A> extends "float" ? GenFloatTypeOf<B> : GenFloatTypeOf<A>;
 
-function genFloatTypeOf(value: GenFloatExpr | number) {
+function genFloatTypeOf(value: GenFloatValue) {
   if (typeof value === "number") return "float";
 
   const type = glslTypeOf(value);
@@ -24,6 +31,18 @@ function genFloatTypeOf(value: GenFloatExpr | number) {
     case "sampler2D":
       throw new Error(`Expected float/vector expression, got ${type}`);
   }
+}
+
+function promotedGenFloatType(a: GenFloatValue, b: GenFloatValue) {
+  return typeof a === "number" ? genFloatTypeOf(b) : genFloatTypeOf(a);
+}
+
+function genFloatCall<T extends GenFloatType>(
+  name: string,
+  args: GenFloatValue[],
+  type: T,
+) {
+  return makeCall(name, args, type);
 }
 
 // ---------------------------------------------------------------------------
@@ -139,38 +158,12 @@ export function mix<T extends "float" | "vec2" | "vec3" | "vec4">(
   return makeCall<T>("mix", [a, b, t], type as T);
 }
 
-export function smoothstep(
-  edge0: FloatArg,
-  edge1: FloatArg,
-  x: FloatArg,
-): ExprProxy<"float">;
-export function smoothstep(
-  edge0: Expr<"vec2"> | FloatArg,
-  edge1: Expr<"vec2"> | FloatArg,
-  x: Expr<"vec2">,
-): ExprProxy<"vec2">;
-export function smoothstep(
-  edge0: Expr<"vec3"> | FloatArg,
-  edge1: Expr<"vec3"> | FloatArg,
-  x: Expr<"vec3">,
-): ExprProxy<"vec3">;
-export function smoothstep(
-  edge0: Expr<"vec4"> | FloatArg,
-  edge1: Expr<"vec4"> | FloatArg,
-  x: Expr<"vec4">,
-): ExprProxy<"vec4">;
-export function smoothstep(
-  edge0: GenFloatExpr | number,
-  edge1: GenFloatExpr | number,
-  x: GenFloatExpr | number,
-) {
-  const args = [edge0, edge1, x];
-  const type = genFloatTypeOf(x);
-
-  if (type === "float") return makeCall("smoothstep", args, "float");
-  if (type === "vec2") return makeCall("smoothstep", args, "vec2");
-  if (type === "vec3") return makeCall("smoothstep", args, "vec3");
-  if (type === "vec4") return makeCall("smoothstep", args, "vec4");
+export function smoothstep<T extends GenFloatType>(
+  edge0: ScalarCompatible<NoInfer<T>>,
+  edge1: ScalarCompatible<NoInfer<T>>,
+  x: GenFloatArg<T>,
+): ExprProxy<T> {
+  return genFloatCall("smoothstep", [edge0, edge1, x], genFloatTypeOf(x) as T);
 }
 
 export function radians(deg: FloatArg): ExprProxy<"float"> {
@@ -191,121 +184,79 @@ export function length(
 }
 
 // atan — one-arg (arctan) or two-arg (atan2)
-export function atan(x: FloatArg): ExprProxy<"float">;
-export function atan(x: Expr<"vec2">): ExprProxy<"vec2">;
-export function atan(x: Expr<"vec3">): ExprProxy<"vec3">;
-export function atan(x: Expr<"vec4">): ExprProxy<"vec4">;
-export function atan(y: FloatArg, x: FloatArg): ExprProxy<"float">;
-export function atan(
-  y: Expr<"vec2">,
-  x: Expr<"vec2"> | FloatArg,
-): ExprProxy<"vec2">;
-export function atan(
-  y: Expr<"vec3">,
-  x: Expr<"vec3"> | FloatArg,
-): ExprProxy<"vec3">;
-export function atan(
-  y: Expr<"vec4">,
-  x: Expr<"vec4"> | FloatArg,
-): ExprProxy<"vec4">;
-export function atan(y: number, x: Expr<"vec2">): ExprProxy<"vec2">;
-export function atan(y: number, x: Expr<"vec3">): ExprProxy<"vec3">;
-export function atan(y: number, x: Expr<"vec4">): ExprProxy<"vec4">;
-export function atan(a: GenFloatExpr | number, b?: GenFloatExpr | number) {
-  const args = b === undefined ? [a] : [a, b];
-  const type =
-    b === undefined || typeof a !== "number"
-      ? genFloatTypeOf(a)
-      : genFloatTypeOf(b);
+type AtanArgs = [GenFloatValue] | [GenFloatValue, GenFloatValue];
+type AtanReturn<A extends AtanArgs> = A extends [infer X]
+  ? GenFloatTypeOf<X>
+  : A extends [infer Y, infer X]
+    ? PromotedGenFloat<Y, X>
+    : never;
 
-  if (type === "float") return makeCall("atan", args, "float");
-  if (type === "vec2") return makeCall("atan", args, "vec2");
-  if (type === "vec3") return makeCall("atan", args, "vec3");
-  if (type === "vec4") return makeCall("atan", args, "vec4");
+export function atan<const A extends AtanArgs>(
+  ...args: A
+): ExprProxy<AtanReturn<A>> {
+  const type =
+    args.length === 1
+      ? genFloatTypeOf(args[0])
+      : promotedGenFloatType(args[0], args[1]);
+  return genFloatCall("atan", args, type) as unknown as ExprProxy<
+    AtanReturn<A>
+  >;
 }
 
 // step — step(edge, x): result type matches x
-export function step(edge: FloatArg, x: FloatArg): ExprProxy<"float">;
-export function step<T extends "float" | "vec2" | "vec3" | "vec4">(
-  edge: FloatArg,
-  x: Expr<T>,
-): ExprProxy<T>;
-export function step<T extends "float" | "vec2" | "vec3" | "vec4">(
-  edge: Expr<T>,
-  x: Expr<T>,
-): ExprProxy<T>;
-export function step(edge: any, x: any): any {
-  const type: GlslType = typeof x === "number" ? "float" : glslTypeOf(x);
-  return makeCall("step", [edge, x], type);
+export function step<T extends GenFloatType>(
+  edge: ScalarCompatible<NoInfer<T>>,
+  x: GenFloatArg<T>,
+): ExprProxy<T> {
+  return genFloatCall("step", [edge, x], genFloatTypeOf(x) as T);
 }
 
 // mod — mod(x, y): result type matches x
-export function mod(x: FloatArg, y: FloatArg): ExprProxy<"float">;
-export function mod<T extends "float" | "vec2" | "vec3" | "vec4">(
-  x: Expr<T>,
-  y: Expr<T> | FloatArg,
-): ExprProxy<T>;
-export function mod(x: any, y: any): any {
-  const type: GlslType = typeof x === "number" ? "float" : glslTypeOf(x);
-  return makeCall("mod", [x, y], type);
+export function mod<T extends GenFloatType>(
+  x: GenFloatArg<T>,
+  y: ScalarCompatible<NoInfer<T>>,
+): ExprProxy<T> {
+  return genFloatCall("mod", [x, y], genFloatTypeOf(x) as T);
 }
 
-// min / max — result type matches first arg
-export function min(x: FloatArg, y: FloatArg): ExprProxy<"float">;
-export function min<T extends "float" | "vec2" | "vec3" | "vec4">(
-  x: Expr<T>,
-  y: Expr<T> | FloatArg,
-): ExprProxy<T>;
-export function min(x: any, y: any): any {
-  const type: GlslType =
-    typeof x === "number"
-      ? typeof y === "number"
-        ? "float"
-        : glslTypeOf(y)
-      : glslTypeOf(x);
-  return makeCall("min", [x, y], type);
+// min / max — result type matches first vector arg, or float for two scalars
+export function min<A extends GenFloatValue, B extends GenFloatValue>(
+  x: A,
+  y: B,
+): ExprProxy<PromotedGenFloat<A, B>> {
+  return genFloatCall(
+    "min",
+    [x, y],
+    promotedGenFloatType(x, y),
+  ) as unknown as ExprProxy<PromotedGenFloat<A, B>>;
 }
 
-export function max(x: FloatArg, y: FloatArg): ExprProxy<"float">;
-export function max<T extends "float" | "vec2" | "vec3" | "vec4">(
-  x: Expr<T>,
-  y: Expr<T> | FloatArg,
-): ExprProxy<T>;
-export function max(x: any, y: any): any {
-  const type: GlslType =
-    typeof x === "number"
-      ? typeof y === "number"
-        ? "float"
-        : glslTypeOf(y)
-      : glslTypeOf(x);
-  return makeCall("max", [x, y], type);
+export function max<A extends GenFloatValue, B extends GenFloatValue>(
+  x: A,
+  y: B,
+): ExprProxy<PromotedGenFloat<A, B>> {
+  return genFloatCall(
+    "max",
+    [x, y],
+    promotedGenFloatType(x, y),
+  ) as unknown as ExprProxy<PromotedGenFloat<A, B>>;
 }
 
 // clamp(x, min, max) — result type matches x
-export function clamp(
-  x: FloatArg,
-  minVal: FloatArg,
-  maxVal: FloatArg,
-): ExprProxy<"float">;
-export function clamp<T extends "float" | "vec2" | "vec3" | "vec4">(
-  x: Expr<T>,
-  minVal: Expr<T> | FloatArg,
-  maxVal: Expr<T> | FloatArg,
-): ExprProxy<T>;
-export function clamp(x: any, minVal: any, maxVal: any): any {
-  const type: GlslType = typeof x === "number" ? "float" : glslTypeOf(x);
-  return makeCall("clamp", [x, minVal, maxVal], type);
+export function clamp<T extends GenFloatType>(
+  x: GenFloatArg<T>,
+  minVal: ScalarCompatible<NoInfer<T>>,
+  maxVal: ScalarCompatible<NoInfer<T>>,
+): ExprProxy<T> {
+  return genFloatCall("clamp", [x, minVal, maxVal], genFloatTypeOf(x) as T);
 }
 
 // pow(x, y) — result type matches x
-export function pow(x: FloatArg, y: FloatArg): ExprProxy<"float">;
-export function pow<T extends "float" | "vec2" | "vec3" | "vec4">(
-  x: Expr<T>,
-  y: Expr<T> | FloatArg,
-): ExprProxy<T>;
-export function pow(x: any, y: any): any {
-  const type: GlslType = typeof x === "number" ? "float" : glslTypeOf(x);
-  return makeCall("pow", [x, y], type);
+export function pow<T extends GenFloatType>(
+  x: GenFloatArg<T>,
+  y: ScalarCompatible<NoInfer<T>>,
+): ExprProxy<T> {
+  return genFloatCall("pow", [x, y], genFloatTypeOf(x) as T);
 }
 
 // mix with bool mask (GLSL ES 3.00 extension, takes bvec)
@@ -317,14 +268,11 @@ export function cross(a: Expr<"vec3">, b: Expr<"vec3">): ExprProxy<"vec3"> {
 }
 
 // reflect(I, N) — genType
-export function reflect(I: FloatArg, N: FloatArg): ExprProxy<"float">;
-export function reflect<T extends "float" | "vec2" | "vec3" | "vec4">(
-  I: Expr<T>,
-  N: Expr<T>,
-): ExprProxy<T>;
-export function reflect(I: any, N: any): any {
-  const type: GlslType = typeof I === "number" ? "float" : glslTypeOf(I);
-  return makeCall("reflect", [I, N], type);
+export function reflect<T extends GenFloatType>(
+  I: GenFloatArg<T>,
+  N: GenFloatArg<T>,
+): ExprProxy<T> {
+  return genFloatCall("reflect", [I, N], genFloatTypeOf(I) as T);
 }
 
 // ---------------------------------------------------------------------------
