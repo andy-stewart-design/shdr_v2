@@ -28,7 +28,7 @@ import {
   min,
   max,
   texture,
-} from "./builtins.ts";
+} from "./builtins";
 import { uniformKindToGlslType, validateUniformMap } from "./uniform.ts";
 import type { UniformKind, UniformMap, UniformSchema } from "./uniform.ts";
 import type {

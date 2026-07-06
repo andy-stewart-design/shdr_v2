@@ -99,4 +99,4 @@ export {
   mul,
   div,
   neg,
-} from "./builtins.ts";
+} from "./builtins";

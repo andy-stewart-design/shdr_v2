@@ -40,7 +40,7 @@ import {
   mul,
   div,
   neg,
-} from "./builtins.ts";
+} from "./builtins";
 import type {
   AstNode,
   ExprProxy,
