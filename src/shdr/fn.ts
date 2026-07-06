@@ -134,13 +134,21 @@ function makeLocalContext(statements: FnBodyStatement[]): LocalContext {
   };
 }
 
-function attachFnMetadata<F extends object>(fn: F, def: FnDef) {
-  return Object.assign(fn, {
-    _def: def,
-    get glsl() {
-      return compileFn({ _def: def });
+type FnMetadata = {
+  readonly _def: FnDef;
+  readonly glsl: string;
+};
+
+function attachFnMetadata<F extends object>(fn: F, def: FnDef): F & FnMetadata {
+  Object.defineProperties(fn, {
+    _def: { value: def, writable: false },
+    glsl: {
+      get: () => compileFn({ _def: def }),
+      enumerable: true,
     },
   });
+
+  return fn as F & FnMetadata;
 }
 
 // ---------------------------------------------------------------------------
@@ -171,12 +179,12 @@ function isGlslTypeArray(value: unknown): value is GlslTypeArray {
   return Array.isArray(value) && value.every(isGlslType);
 }
 
-type FnWithAnonArgs<T extends readonly GlslType[], R extends GlslType> = (
+type TupleFnBody<T extends readonly GlslType[], R extends GlslType> = (
   args: TupleToExprs<T>,
   ctx: FnContext,
 ) => ExprProxy<R>;
 
-type FnWithNamedArgs<S extends Record<string, GlslType>, R extends GlslType> = (
+type NamedFnBody<S extends Record<string, GlslType>, R extends GlslType> = (
   args: ParamsToExprs<S>,
   ctx: FnContext,
 ) => ExprProxy<R>;
@@ -188,13 +196,13 @@ type NamedFnImplementationArgs<R extends GlslType> =
       name: string,
       params: GlslTypeArray,
       returnType: R,
-      body: FnWithAnonArgs<readonly GlslType[], R>,
+      body: TupleFnBody<readonly GlslType[], R>,
     ]
   | [
       name: string,
       params: Record<string, GlslType>,
       returnType: R,
-      body: FnWithNamedArgs<Record<string, GlslType>, R>,
+      body: NamedFnBody<Record<string, GlslType>, R>,
     ];
 
 type FnImplementationArgs<R extends GlslType> =
@@ -202,12 +210,12 @@ type FnImplementationArgs<R extends GlslType> =
   | [
       params: GlslTypeArray,
       returnType: R,
-      body: FnWithAnonArgs<readonly GlslType[], R>,
+      body: TupleFnBody<readonly GlslType[], R>,
     ]
   | [
       params: Record<string, GlslType>,
       returnType: R,
-      body: FnWithNamedArgs<Record<string, GlslType>, R>,
+      body: NamedFnBody<Record<string, GlslType>, R>,
     ];
 
 function isNamedFnArgs<R extends GlslType>(
@@ -222,7 +230,7 @@ function isTupleFnArgs<R extends GlslType>(
   name: string,
   params: GlslTypeArray,
   returnType: R,
-  body: FnWithAnonArgs<readonly GlslType[], R>,
+  body: TupleFnBody<readonly GlslType[], R>,
 ] {
   return isGlslTypeArray(args[1]);
 }
@@ -232,7 +240,7 @@ function isTupleFnArgs<R extends GlslType>(
 export function fn<T extends readonly GlslType[], R extends GlslType>(
   params: readonly [...T],
   returnType: R,
-  body: FnWithAnonArgs<T, R>,
+  body: TupleFnBody<T, R>,
 ): TupleShaderFn<T, R>;
 
 // Named array form — works without the transform.
@@ -240,7 +248,7 @@ export function fn<T extends readonly GlslType[], R extends GlslType>(
   name: string,
   params: readonly [...T],
   returnType: R,
-  body: FnWithAnonArgs<T, R>,
+  body: TupleFnBody<T, R>,
 ): TupleShaderFn<T, R>;
 
 // Nameless object form — intended for .shdr.ts files where the Vite transform
@@ -248,7 +256,7 @@ export function fn<T extends readonly GlslType[], R extends GlslType>(
 export function fn<S extends Record<string, GlslType>, R extends GlslType>(
   params: S,
   returnType: R,
-  body: FnWithNamedArgs<S, R>,
+  body: NamedFnBody<S, R>,
 ): ShaderFn<S, R>;
 
 // Named object form — works without the transform.
@@ -256,7 +264,7 @@ export function fn<S extends Record<string, GlslType>, R extends GlslType>(
   name: string,
   params: S,
   returnType: R,
-  body: FnWithNamedArgs<S, R>,
+  body: NamedFnBody<S, R>,
 ): ShaderFn<S, R>;
 
 // Implementation — tuple union keeps params and body correlated.
