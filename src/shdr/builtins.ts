@@ -192,26 +192,36 @@ export function length(
 
 // atan — one-arg (arctan) or two-arg (atan2)
 export function atan(x: FloatArg): ExprProxy<"float">;
-export function atan<T extends "float" | "vec2" | "vec3" | "vec4">(
-  x: Expr<T>,
-): ExprProxy<T>;
+export function atan(x: Expr<"vec2">): ExprProxy<"vec2">;
+export function atan(x: Expr<"vec3">): ExprProxy<"vec3">;
+export function atan(x: Expr<"vec4">): ExprProxy<"vec4">;
 export function atan(y: FloatArg, x: FloatArg): ExprProxy<"float">;
-export function atan<T extends "float" | "vec2" | "vec3" | "vec4">(
-  y: Expr<T>,
-  x: Expr<T> | FloatArg,
-): ExprProxy<T>;
-export function atan(a: any, b?: any): any {
-  if (b === undefined) {
-    const type: GlslType = typeof a === "number" ? "float" : glslTypeOf(a);
-    return makeCall("atan", [a], type);
-  }
-  const type: GlslType =
-    typeof a === "number"
-      ? typeof b === "number"
-        ? "float"
-        : glslTypeOf(b)
-      : glslTypeOf(a);
-  return makeCall("atan", [a, b], type);
+export function atan(
+  y: Expr<"vec2">,
+  x: Expr<"vec2"> | FloatArg,
+): ExprProxy<"vec2">;
+export function atan(
+  y: Expr<"vec3">,
+  x: Expr<"vec3"> | FloatArg,
+): ExprProxy<"vec3">;
+export function atan(
+  y: Expr<"vec4">,
+  x: Expr<"vec4"> | FloatArg,
+): ExprProxy<"vec4">;
+export function atan(y: number, x: Expr<"vec2">): ExprProxy<"vec2">;
+export function atan(y: number, x: Expr<"vec3">): ExprProxy<"vec3">;
+export function atan(y: number, x: Expr<"vec4">): ExprProxy<"vec4">;
+export function atan(a: GenFloatExpr | number, b?: GenFloatExpr | number) {
+  const args = b === undefined ? [a] : [a, b];
+  const type =
+    b === undefined || typeof a !== "number"
+      ? genFloatTypeOf(a)
+      : genFloatTypeOf(b);
+
+  if (type === "float") return makeCall("atan", args, "float");
+  if (type === "vec2") return makeCall("atan", args, "vec2");
+  if (type === "vec3") return makeCall("atan", args, "vec3");
+  if (type === "vec4") return makeCall("atan", args, "vec4");
 }
 
 // step — step(edge, x): result type matches x
