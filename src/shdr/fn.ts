@@ -154,12 +154,41 @@ function attachFnMetadata<F extends object>(fn: F, def: FnDef) {
 // the destructuring pattern.
 // ---------------------------------------------------------------------------
 
+const GLSL_TYPES = [
+  "float",
+  "vec2",
+  "vec3",
+  "vec4",
+  "mat2",
+  "sampler2D",
+] as const;
+
+type FnWithAnonArgs<T extends readonly GlslType[], R extends GlslType> = (
+  args: TupleToExprs<T>,
+  ctx: FnContext,
+) => ExprProxy<R>;
+
+type FnWithNamedArgs<S extends Record<string, GlslType>, R extends GlslType> = (
+  args: ParamsToExprs<S>,
+  ctx: FnContext,
+) => ExprProxy<R>;
+
+type GlslTypeArray = GlslType[] | readonly GlslType[];
+
+function isGlslType(value: unknown): value is GlslType {
+  return typeof value === "string" && GLSL_TYPES.includes(value as GlslType);
+}
+
+function isGlslTypeArray(value: unknown): value is GlslTypeArray {
+  return Array.isArray(value) && value.every(isGlslType);
+}
+
 // Nameless array form — intended for .shdr.ts files where the Vite transform
 // rewrites `const rot = fn([Float], ...)` to `fn("rot", [Float], ...)`.
 export function fn<T extends readonly GlslType[], R extends GlslType>(
   params: readonly [...T],
   returnType: R,
-  body: (args: TupleToExprs<T>, ctx: FnContext) => ExprProxy<R>,
+  body: FnWithAnonArgs<T, R>,
 ): TupleShaderFn<T, R>;
 
 // Named array form — works without the transform.
@@ -167,7 +196,7 @@ export function fn<T extends readonly GlslType[], R extends GlslType>(
   name: string,
   params: readonly [...T],
   returnType: R,
-  body: (args: TupleToExprs<T>, ctx: FnContext) => ExprProxy<R>,
+  body: FnWithAnonArgs<T, R>,
 ): TupleShaderFn<T, R>;
 
 // Nameless object form — intended for .shdr.ts files where the Vite transform
@@ -175,7 +204,7 @@ export function fn<T extends readonly GlslType[], R extends GlslType>(
 export function fn<S extends Record<string, GlslType>, R extends GlslType>(
   params: S,
   returnType: R,
-  body: (args: ParamsToExprs<S>, ctx: FnContext) => ExprProxy<R>,
+  body: FnWithNamedArgs<S, R>,
 ): ShaderFn<S, R>;
 
 // Named object form — works without the transform.
@@ -183,7 +212,7 @@ export function fn<S extends Record<string, GlslType>, R extends GlslType>(
   name: string,
   params: S,
   returnType: R,
-  body: (args: ParamsToExprs<S>, ctx: FnContext) => ExprProxy<R>,
+  body: FnWithNamedArgs<S, R>,
 ): ShaderFn<S, R>;
 
 // Implementation — body typed as (...args: any[]) => ... to satisfy all overloads
@@ -192,8 +221,14 @@ export function fn<R extends GlslType>(
   paramsOrReturnType: ReadonlyArray<GlslType> | Record<string, GlslType> | R,
   returnTypeOrBody: R | ((...args: any[]) => ExprProxy<R>), // eslint-disable-line @typescript-eslint/no-explicit-any
   maybeBody?: (...args: any[]) => ExprProxy<R>, // eslint-disable-line @typescript-eslint/no-explicit-any
-): unknown {
-  if (typeof nameOrParams !== "string") {
+) {
+  const shouldThrow =
+    typeof nameOrParams !== "string" ||
+    typeof returnTypeOrBody === "function" ||
+    typeof paramsOrReturnType === "string" ||
+    !maybeBody;
+
+  if (shouldThrow) {
     throw new Error(
       "Nameless fn(...) calls must be compiled by the shdr Vite transform. " +
         "Use a .shdr.ts file or pass an explicit name string.",
@@ -201,24 +236,19 @@ export function fn<R extends GlslType>(
   }
 
   const name = nameOrParams;
-  const params = paramsOrReturnType as
-    | ReadonlyArray<GlslType>
-    | Record<string, GlslType>;
-  const returnType = returnTypeOrBody as R;
-  const body = maybeBody!;
+  const params = paramsOrReturnType;
+  const returnType = returnTypeOrBody;
+  const body = maybeBody;
 
   const statements: FnBodyStatement[] = [];
   const local$ = makeLocalContext(statements);
 
-  if (Array.isArray(params)) {
-    // ── Array form ──────────────────────────────────────────────────────────
-    const types = params as readonly GlslType[];
-
+  if (isGlslTypeArray(params)) {
     // Auto-generate GLSL param names and typed proxies
     const paramSchema: Record<string, GlslType> = Object.fromEntries(
-      types.map((t, i) => [`_p${i}`, t]),
+      params.map((t, i) => [`_p${i}`, t]),
     );
-    const paramRefs = types.map((t, i) => refProxy([`_p${i}`], t));
+    const paramRefs = params.map((t, i) => refProxy([`_p${i}`], t));
 
     const returnValue = body(paramRefs, { $: local$, ...fnBuiltins });
 
@@ -230,66 +260,62 @@ export function fn<R extends GlslType>(
       returnExpr: toNode(returnValue),
     };
 
-    const fn = ((...args: (ExprProxy<GlslType> | number)[]) => {
+    const fn = (...args: (ExprProxy<GlslType> | number)[]) => {
       // Guard: if the first arg is a plain object (not an ExprProxy, not a number),
       // the caller used named syntax rot({ a }) instead of positional rot(a).
       if (
         args.length > 0 &&
         args[0] !== null &&
         typeof args[0] === "object" &&
-        !(NODE in (args[0] as object))
+        !(NODE in args[0])
       ) {
         throw new Error(
-          `fn '${name}' was defined with positional params [${types.join(", ")}] ` +
-            `but called with a named-args object. Use ${name}(${types.map((_, i) => `arg${i}`).join(", ")}) instead.`,
+          `fn '${name}' was defined with positional params [${params.join(", ")}] ` +
+            `but called with a named-args object. Use ${name}(${params.map((_, i) => `arg${i}`).join(", ")}) instead.`,
         );
       }
       const argNodes: AstNode[] = args.map((a) => toNode(a));
       return makeProxy({ kind: "fncall", def, args: argNodes }, returnType);
-    }) as unknown as TupleShaderFn<readonly GlslType[], GlslType>;
+    };
+    // }) as unknown as TupleShaderFn<readonly GlslType[], GlslType>;
 
     return attachFnMetadata(fn, def);
   } else {
     // ── Object form ─────────────────────────────────────────────────────────
-    const schema = params as Record<string, GlslType>;
-
     const paramRefs = Object.fromEntries(
-      Object.entries(schema).map(([key, type]) => [key, refProxy([key], type)]),
+      Object.entries(params).map(([key, type]) => [key, refProxy([key], type)]),
     );
 
     const returnValue = body(paramRefs, { $: local$, ...fnBuiltins });
 
     const def: FnDef = {
       name,
-      params: schema,
+      params,
       returnType,
       body: statements,
       returnExpr: toNode(returnValue),
     };
 
-    const fn = ((args: Record<string, ExprProxy<GlslType> | number>) => {
+    const fn = (args: Record<string, ExprProxy<GlslType> | number>) => {
       // Guard: if args is an ExprProxy (has NODE symbol), the caller used
       // positional syntax rot(angle) instead of named rot({ a: angle }).
       // Without strict TS this silently passes but causes a bad swizzle in GLSL.
-      if (
-        args !== null &&
-        typeof args === "object" &&
-        NODE in (args as object)
-      ) {
+      if (args !== null && typeof args === "object" && NODE in args) {
         throw new Error(
-          `fn '${name}' was defined with named params { ${Object.keys(schema).join(", ")} } ` +
+          `fn '${name}' was defined with named params { ${Object.keys(params).join(", ")} } ` +
             `but called with positional arguments. Use ${name}({ ${Object.keys(
-              schema,
+              params,
             )
               .map((k, i) => `${k}: arg${i}`)
               .join(", ")} }) instead.`,
         );
       }
-      const argNodes: AstNode[] = Object.keys(schema).map((k) =>
+      const argNodes: AstNode[] = Object.keys(params).map((k) =>
         toNode(args[k]),
       );
       return makeProxy({ kind: "fncall", def, args: argNodes }, returnType);
-    }) as unknown as ShaderFn<Record<string, GlslType>, GlslType>;
+    };
+    // }) as unknown as ShaderFn<Record<string, GlslType>, GlslType>;
 
     return attachFnMetadata(fn, def);
   }
