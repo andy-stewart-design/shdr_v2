@@ -43,7 +43,8 @@ export type GenFloatArg<T extends GenFloatType> = T extends "float"
  * pow(vec3, float) -> vec3.
  */
 export type ScalarCompatible<T extends GenFloatType> =
-  GenFloatArg<T> | FloatArg;
+  | GenFloatArg<T>
+  | FloatArg;
 
 /** Runtime value accepted by generic float/vector builtins. */
 export type GenFloatValue = GenFloatExpr | number;
@@ -77,18 +78,7 @@ export type PromotedGenFloat<A, B> =
 /** Runtime GLSL type lookup for a GenFloatValue. */
 export function genFloatTypeOf(value: GenFloatValue): GenFloatType {
   if (typeof value === "number") return "float";
-
-  const type = glslTypeOf(value);
-  switch (type) {
-    case "float":
-    case "vec2":
-    case "vec3":
-    case "vec4":
-      return type;
-    case "mat2":
-    case "sampler2D":
-      throw new Error(`Expected float/vector expression, got ${type}`);
-  }
+  return glslTypeOf(value);
 }
 
 /** Runtime equivalent of PromotedGenFloat<A, B>. */
