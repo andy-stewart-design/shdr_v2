@@ -7,8 +7,8 @@ export const GLSL_TYPE = Symbol("glslType");
 // Core helpers
 // ---------------------------------------------------------------------------
 
-export function makeExpr<T extends GlslType>(node: AstNode, type: T): Expr<T> {
-  return { [NODE]: node, [GLSL_TYPE]: type } as unknown as Expr<T>;
+export function makeExpr<T extends GlslType>(node: AstNode, type: T) {
+  return { [NODE]: node, [GLSL_TYPE]: type } satisfies Expr<T>;
 }
 
 export function glslTypeOf(value: Expr<GlslType>): GlslType {

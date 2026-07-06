@@ -2,6 +2,29 @@ import { makeCall, makeProxy, glslTypeOf, toNode } from "./ast.ts";
 import type { Expr, ExprProxy, GlslType } from "./types.ts";
 
 type FloatArg = Expr<"float"> | number;
+// type GenFloatType = "float" | "vec2" | "vec3" | "vec4";
+type GenFloatExpr = Expr<"float"> | Expr<"vec2"> | Expr<"vec3"> | Expr<"vec4">;
+// type GenFloatProxy =
+//   | ExprProxy<"float">
+//   | ExprProxy<"vec2">
+//   | ExprProxy<"vec3">
+//   | ExprProxy<"vec4">;
+
+function genFloatTypeOf(value: GenFloatExpr | number) {
+  if (typeof value === "number") return "float";
+
+  const type = glslTypeOf(value);
+  switch (type) {
+    case "float":
+    case "vec2":
+    case "vec3":
+    case "vec4":
+      return type;
+    case "mat2":
+    case "sampler2D":
+      throw new Error(`Expected float/vector expression, got ${type}`);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Scalar / vector constructors
@@ -75,12 +98,11 @@ type ScalarBuiltin = {
   (v: Expr<"vec4">): ExprProxy<"vec4">;
 };
 
-function makeScalarBuiltin(name: string): ScalarBuiltin {
+function makeScalarBuiltin(name: string) {
   return ((arg: Expr<GlslType> | number) => {
-    const argType: GlslType =
-      typeof arg === "number" ? "float" : glslTypeOf(arg);
+    const argType = typeof arg === "number" ? "float" : glslTypeOf(arg);
     return makeCall(name, [arg], argType);
-  }) as unknown as ScalarBuiltin;
+  }) as ScalarBuiltin;
 }
 
 export const sin = makeScalarBuiltin("sin");
@@ -107,8 +129,8 @@ export function mix<T extends "float" | "vec2" | "vec3" | "vec4">(
   a: Expr<T> | number,
   b: Expr<T> | number,
   t: FloatArg,
-): ExprProxy<T> {
-  const type: GlslType =
+) {
+  const type =
     typeof a !== "number"
       ? glslTypeOf(a)
       : typeof b !== "number"
@@ -122,14 +144,33 @@ export function smoothstep(
   edge1: FloatArg,
   x: FloatArg,
 ): ExprProxy<"float">;
-export function smoothstep<T extends "vec2" | "vec3" | "vec4">(
-  edge0: FloatArg,
-  edge1: FloatArg,
-  x: Expr<T>,
-): ExprProxy<T>;
-export function smoothstep(edge0: any, edge1: any, x: any): any {
-  const type: GlslType = typeof x === "number" ? "float" : glslTypeOf(x);
-  return makeCall("smoothstep", [edge0, edge1, x], type);
+export function smoothstep(
+  edge0: Expr<"vec2"> | FloatArg,
+  edge1: Expr<"vec2"> | FloatArg,
+  x: Expr<"vec2">,
+): ExprProxy<"vec2">;
+export function smoothstep(
+  edge0: Expr<"vec3"> | FloatArg,
+  edge1: Expr<"vec3"> | FloatArg,
+  x: Expr<"vec3">,
+): ExprProxy<"vec3">;
+export function smoothstep(
+  edge0: Expr<"vec4"> | FloatArg,
+  edge1: Expr<"vec4"> | FloatArg,
+  x: Expr<"vec4">,
+): ExprProxy<"vec4">;
+export function smoothstep(
+  edge0: GenFloatExpr | number,
+  edge1: GenFloatExpr | number,
+  x: GenFloatExpr | number,
+) {
+  const args = [edge0, edge1, x];
+  const type = genFloatTypeOf(x);
+
+  if (type === "float") return makeCall("smoothstep", args, "float");
+  if (type === "vec2") return makeCall("smoothstep", args, "vec2");
+  if (type === "vec3") return makeCall("smoothstep", args, "vec3");
+  if (type === "vec4") return makeCall("smoothstep", args, "vec4");
 }
 
 export function radians(deg: FloatArg): ExprProxy<"float"> {
