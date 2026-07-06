@@ -163,6 +163,14 @@ const GLSL_TYPES = [
   "sampler2D",
 ] as const;
 
+function isGlslType(value: unknown): value is GlslType {
+  return typeof value === "string" && GLSL_TYPES.includes(value as GlslType);
+}
+
+function isGlslTypeArray(value: unknown): value is GlslTypeArray {
+  return Array.isArray(value) && value.every(isGlslType);
+}
+
 type FnWithAnonArgs<T extends readonly GlslType[], R extends GlslType> = (
   args: TupleToExprs<T>,
   ctx: FnContext,
@@ -175,12 +183,48 @@ type FnWithNamedArgs<S extends Record<string, GlslType>, R extends GlslType> = (
 
 type GlslTypeArray = GlslType[] | readonly GlslType[];
 
-function isGlslType(value: unknown): value is GlslType {
-  return typeof value === "string" && GLSL_TYPES.includes(value as GlslType);
+type NamedFnImplementationArgs<R extends GlslType> =
+  | [
+      name: string,
+      params: GlslTypeArray,
+      returnType: R,
+      body: FnWithAnonArgs<readonly GlslType[], R>,
+    ]
+  | [
+      name: string,
+      params: Record<string, GlslType>,
+      returnType: R,
+      body: FnWithNamedArgs<Record<string, GlslType>, R>,
+    ];
+
+type FnImplementationArgs<R extends GlslType> =
+  | NamedFnImplementationArgs<R>
+  | [
+      params: GlslTypeArray,
+      returnType: R,
+      body: FnWithAnonArgs<readonly GlslType[], R>,
+    ]
+  | [
+      params: Record<string, GlslType>,
+      returnType: R,
+      body: FnWithNamedArgs<Record<string, GlslType>, R>,
+    ];
+
+function isNamedFnArgs<R extends GlslType>(
+  args: FnImplementationArgs<R>,
+): args is NamedFnImplementationArgs<R> {
+  return typeof args[0] === "string";
 }
 
-function isGlslTypeArray(value: unknown): value is GlslTypeArray {
-  return Array.isArray(value) && value.every(isGlslType);
+function isTupleFnArgs<R extends GlslType>(
+  args: NamedFnImplementationArgs<R>,
+): args is [
+  name: string,
+  params: GlslTypeArray,
+  returnType: R,
+  body: FnWithAnonArgs<readonly GlslType[], R>,
+] {
+  return isGlslTypeArray(args[1]);
 }
 
 // Nameless array form — intended for .shdr.ts files where the Vite transform
@@ -215,35 +259,20 @@ export function fn<S extends Record<string, GlslType>, R extends GlslType>(
   body: FnWithNamedArgs<S, R>,
 ): ShaderFn<S, R>;
 
-// Implementation — body typed as (...args: any[]) => ... to satisfy all overloads
-export function fn<R extends GlslType>(
-  nameOrParams: string | ReadonlyArray<GlslType> | Record<string, GlslType>,
-  paramsOrReturnType: ReadonlyArray<GlslType> | Record<string, GlslType> | R,
-  returnTypeOrBody: R | ((...args: any[]) => ExprProxy<R>), // eslint-disable-line @typescript-eslint/no-explicit-any
-  maybeBody?: (...args: any[]) => ExprProxy<R>, // eslint-disable-line @typescript-eslint/no-explicit-any
-) {
-  const shouldThrow =
-    typeof nameOrParams !== "string" ||
-    typeof returnTypeOrBody === "function" ||
-    typeof paramsOrReturnType === "string" ||
-    !maybeBody;
-
-  if (shouldThrow) {
+// Implementation — tuple union keeps params and body correlated.
+export function fn<R extends GlslType>(...args: FnImplementationArgs<R>) {
+  if (!isNamedFnArgs(args)) {
     throw new Error(
       "Nameless fn(...) calls must be compiled by the shdr Vite transform. " +
         "Use a .shdr.ts file or pass an explicit name string.",
     );
   }
 
-  const name = nameOrParams;
-  const params = paramsOrReturnType;
-  const returnType = returnTypeOrBody;
-  const body = maybeBody;
-
   const statements: FnBodyStatement[] = [];
   const local$ = makeLocalContext(statements);
 
-  if (isGlslTypeArray(params)) {
+  if (isTupleFnArgs(args)) {
+    const [name, params, returnType, body] = args;
     // Auto-generate GLSL param names and typed proxies
     const paramSchema: Record<string, GlslType> = Object.fromEntries(
       params.map((t, i) => [`_p${i}`, t]),
@@ -277,10 +306,10 @@ export function fn<R extends GlslType>(
       const argNodes: AstNode[] = args.map((a) => toNode(a));
       return makeProxy({ kind: "fncall", def, args: argNodes }, returnType);
     };
-    // }) as unknown as TupleShaderFn<readonly GlslType[], GlslType>;
 
     return attachFnMetadata(fn, def);
   } else {
+    const [name, params, returnType, body] = args;
     // ── Object form ─────────────────────────────────────────────────────────
     const paramRefs = Object.fromEntries(
       Object.entries(params).map(([key, type]) => [key, refProxy([key], type)]),
@@ -315,7 +344,6 @@ export function fn<R extends GlslType>(
       );
       return makeProxy({ kind: "fncall", def, args: argNodes }, returnType);
     };
-    // }) as unknown as ShaderFn<Record<string, GlslType>, GlslType>;
 
     return attachFnMetadata(fn, def);
   }
