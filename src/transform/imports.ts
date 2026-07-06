@@ -9,8 +9,9 @@ export type ShdrImportBindings = {
 
 function isShdrImport(source: string): boolean {
   return (
-    /(^|\/)shdr(\/index\.ts)?$/.test(source) ||
-    /(^|\/)shdr\/index\.ts$/.test(source)
+    source === "@shdr/index" ||
+    source === "@shdr/index.ts" ||
+    /(^|\/)shdr(\/index)?(\.ts)?$/.test(source)
   );
 }
 
