@@ -127,15 +127,20 @@ function makeLocalContext(statements: FnBodyStatement[]): LocalContext {
       const name =
         typeof nameOrValue === "string" ? nameOrValue : `_l${counter++}`;
       const value = typeof nameOrValue === "string" ? maybeValue! : nameOrValue;
-      statements.push({
-        type: "let",
-        name,
-        varType: glslTypeOf(value),
-        value: toNode(value),
-      });
-      return refProxy<T>([name], glslTypeOf(value) as T);
+      const varType = glslTypeOf(value);
+      statements.push({ type: "let", name, varType, value: toNode(value) });
+      return refProxy([name], varType);
     },
   };
+}
+
+function attachFnMetadata<F extends object>(fn: F, def: FnDef) {
+  return Object.assign(fn, {
+    _def: def,
+    get glsl() {
+      return compileFn({ _def: def });
+    },
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -243,12 +248,7 @@ export function fn<R extends GlslType>(
       return makeProxy({ kind: "fncall", def, args: argNodes }, returnType);
     }) as unknown as TupleShaderFn<readonly GlslType[], GlslType>;
 
-    Object.defineProperty(fn, "_def", { value: def, writable: false });
-    Object.defineProperty(fn, "glsl", {
-      get: () => compileFn(fn as { _def: typeof def }),
-      enumerable: true,
-    });
-    return fn;
+    return attachFnMetadata(fn, def);
   } else {
     // ── Object form ─────────────────────────────────────────────────────────
     const schema = params as Record<string, GlslType>;
@@ -291,11 +291,6 @@ export function fn<R extends GlslType>(
       return makeProxy({ kind: "fncall", def, args: argNodes }, returnType);
     }) as unknown as ShaderFn<Record<string, GlslType>, GlslType>;
 
-    Object.defineProperty(fn, "_def", { value: def, writable: false });
-    Object.defineProperty(fn, "glsl", {
-      get: () => compileFn(fn as { _def: typeof def }),
-      enumerable: true,
-    });
-    return fn;
+    return attachFnMetadata(fn, def);
   }
 }
