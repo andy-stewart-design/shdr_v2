@@ -117,9 +117,11 @@ const fnBuiltins = {
  */
 export type FnContext = { $: LocalContext } & typeof fnBuiltins;
 
-function makeLocalContext(statements: FnBodyStatement[]): LocalContext {
+function makeLocalContext() {
+  const statements: FnBodyStatement[] = [];
   let counter = 0;
-  return {
+
+  const context: LocalContext = {
     let<T extends GlslType>(
       nameOrValue: string | ExprProxy<T>,
       maybeValue?: ExprProxy<T>,
@@ -128,10 +130,14 @@ function makeLocalContext(statements: FnBodyStatement[]): LocalContext {
         typeof nameOrValue === "string" ? nameOrValue : `_l${counter++}`;
       const value = typeof nameOrValue === "string" ? maybeValue! : nameOrValue;
       const varType = glslTypeOf(value);
+
       statements.push({ type: "let", name, varType, value: toNode(value) });
+
       return refProxy([name], varType);
     },
   };
+
+  return [context, statements] as const;
 }
 
 type FnMetadata = {
@@ -276,8 +282,7 @@ export function fn<R extends GlslType>(...args: FnImplementationArgs<R>) {
     );
   }
 
-  const statements: FnBodyStatement[] = [];
-  const local$ = makeLocalContext(statements);
+  const [local$, statements] = makeLocalContext();
 
   if (isTupleFnArgs(args)) {
     const [name, params, returnType, body] = args;
