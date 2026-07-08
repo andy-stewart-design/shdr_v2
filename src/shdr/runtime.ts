@@ -4,8 +4,6 @@ import {
   validateUniformMap,
   type InternalRuntimeUniforms,
   type RuntimeUniforms,
-  type Uniform,
-  type UniformMap,
   type UniformSchema,
 } from "./uniform.ts";
 
@@ -13,24 +11,15 @@ import {
 // Types
 // ---------------------------------------------------------------------------
 
-type UniformInput = UniformSchema | UniformMap;
-
-type ShaderRuntimeUniforms<U extends UniformInput> = U extends UniformSchema
-  ? RuntimeUniforms<U>
-  : U;
-
-type InternalShaderRuntimeUniforms<U extends UniformInput> =
-  U extends UniformSchema ? InternalRuntimeUniforms<U> : U;
-
-export interface ShaderOptions<U extends UniformInput = UniformSchema> {
+export interface ShaderOptions<U extends UniformSchema = UniformSchema> {
   canvas: HTMLCanvasElement;
   fragment: string | FragmentFn<U>;
   uniforms?: U;
 }
 
-export interface ShaderInstance<U extends UniformInput = UniformSchema> {
+export interface ShaderInstance<U extends UniformSchema = UniformSchema> {
   /** Live runtime uniform handles. */
-  readonly u: ShaderRuntimeUniforms<U>;
+  readonly u: RuntimeUniforms<U>;
   /** Stop the render loop and free all WebGL resources. */
   destroy(): void;
 }
@@ -87,9 +76,7 @@ function linkProgram(
   return program;
 }
 
-type RuntimeUniformHandle =
-  | Uniform
-  | InternalRuntimeUniforms<UniformSchema>[string];
+type RuntimeUniformHandle = InternalRuntimeUniforms<UniformSchema>[string];
 
 type RuntimeUniform = {
   uniform: RuntimeUniformHandle;
@@ -109,7 +96,7 @@ function makeRuntimeUniform(
 ): RuntimeUniform {
   const location = gl.getUniformLocation(program, `u_${name}`);
 
-  const uniformType = "schema" in uniform ? uniform.schema.type : uniform.kind;
+  const uniformType = uniform.schema.type;
 
   if (uniformType === "texture2D") {
     const resolutionLocation = gl.getUniformLocation(
@@ -224,11 +211,7 @@ function makeRuntimeUniform(
 // createShader — compile + run
 // ---------------------------------------------------------------------------
 
-function isUniformSchema(uniforms: UniformInput): uniforms is UniformSchema {
-  return Object.values(uniforms).every((uniform) => "type" in uniform);
-}
-
-export function createShader<U extends UniformInput = UniformSchema>(
+export function createShader<U extends UniformSchema = UniformSchema>(
   options: ShaderOptions<U>,
 ): ShaderInstance<U> {
   const { canvas } = options;
@@ -256,14 +239,9 @@ export function createShader<U extends UniformInput = UniformSchema>(
 
   let nextTextureUnit = 0;
   const inputUniforms = options.uniforms ?? ({} as U);
-  const liveUniforms = (
-    isUniformSchema(inputUniforms)
-      ? createRuntimeUniforms(inputUniforms)
-      : inputUniforms
-  ) as InternalShaderRuntimeUniforms<U>;
+  const liveUniforms = createRuntimeUniforms(inputUniforms);
   const customUniforms = Object.entries(liveUniforms).map(([name, uniform]) => {
-    const uniformType =
-      "schema" in uniform ? uniform.schema.type : uniform.kind;
+    const uniformType = uniform.schema.type;
     return makeRuntimeUniform(
       gl,
       program,
@@ -340,7 +318,7 @@ export function createShader<U extends UniformInput = UniformSchema>(
 
   // --- Cleanup ---
   return {
-    u: liveUniforms as ShaderRuntimeUniforms<U>,
+    u: liveUniforms,
     destroy() {
       destroyed = true;
       cancelAnimationFrame(rafId);

@@ -1,5 +1,5 @@
 import type { NODE, GLSL_TYPE } from "./ast.ts";
-import type { UniformMap, UniformSchema } from "./uniform.ts";
+import type { UniformSchema } from "./uniform.ts";
 
 // ---------------------------------------------------------------------------
 // AST node types
@@ -211,15 +211,11 @@ export type ConstStatement = {
 
 type UniformExprKind<K> = K extends "texture2D" ? "sampler2D" : K;
 
-type UniformShape = UniformSchema | UniformMap;
-
 type UniformSpecType<T> = T extends { readonly type: infer Type }
   ? Type
-  : T extends { readonly kind: infer Kind }
-    ? Kind
-    : never;
+  : never;
 
-type TextureResolutionExprs<U extends UniformShape> = {
+type TextureResolutionExprs<U extends UniformSchema> = {
   readonly [K in keyof U as UniformSpecType<U[K]> extends "texture2D"
     ? `${Extract<K, string>}Resolution`
     : never]: ExprProxy<"vec2">;
@@ -234,7 +230,7 @@ export type TextureUniformExpr = ExprProxy<"sampler2D"> & {
   ): ExprProxy<"vec4">;
 };
 
-export type UniformExprs<U extends UniformShape> = {
+export type UniformExprs<U extends UniformSchema> = {
   readonly [K in keyof U]: UniformSpecType<U[K]> extends "texture2D"
     ? TextureUniformExpr
     : UniformExprKind<UniformSpecType<U[K]>> extends GlslType
@@ -242,7 +238,7 @@ export type UniformExprs<U extends UniformShape> = {
       : never;
 } & TextureResolutionExprs<U>;
 
-export type ShaderContext<U extends UniformShape = UniformSchema> = {
+export type ShaderContext<U extends UniformSchema = UniformSchema> = {
   /** Declare a named local variable. */
   let<T extends GlslType>(name: string, value: ExprProxy<T>): ExprProxy<T>;
   /** Declare an auto-named local variable (_v0, _v1, …). */

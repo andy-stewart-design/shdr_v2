@@ -137,7 +137,7 @@ function makeLocalContext() {
     },
   };
 
-  return [context, statements] as const;
+  return { context, statements };
 }
 
 type FnMetadata = {
@@ -282,7 +282,7 @@ export function fn<R extends GlslType>(...args: FnImplementationArgs<R>) {
     );
   }
 
-  const [local$, statements] = makeLocalContext();
+  const locals = makeLocalContext();
 
   if (isTupleFnArgs(args)) {
     const [name, params, returnType, body] = args;
@@ -292,13 +292,13 @@ export function fn<R extends GlslType>(...args: FnImplementationArgs<R>) {
     );
     const paramRefs = params.map((t, i) => refProxy([`_p${i}`], t));
 
-    const returnValue = body(paramRefs, { $: local$, ...fnBuiltins });
+    const returnValue = body(paramRefs, { $: locals.context, ...fnBuiltins });
 
     const def: FnDef = {
       name,
       params: paramSchema,
       returnType,
-      body: statements,
+      body: locals.statements,
       returnExpr: toNode(returnValue),
     };
 
@@ -328,13 +328,13 @@ export function fn<R extends GlslType>(...args: FnImplementationArgs<R>) {
       Object.entries(params).map(([key, type]) => [key, refProxy([key], type)]),
     );
 
-    const returnValue = body(paramRefs, { $: local$, ...fnBuiltins });
+    const returnValue = body(paramRefs, { $: locals.context, ...fnBuiltins });
 
     const def: FnDef = {
       name,
       params,
       returnType,
-      body: statements,
+      body: locals.statements,
       returnExpr: toNode(returnValue),
     };
 

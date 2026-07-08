@@ -1,11 +1,9 @@
-import type { GlslType } from "./types.ts";
-
-export type UniformKind = "float" | "vec2" | "vec3" | "vec4" | "texture2D";
+export type UniformType = "float" | "vec2" | "vec3" | "vec4" | "texture2D";
 
 export type TextureSource = string | File | Blob;
 export type TextureFileExtension = "png" | "jpg" | "jpeg" | "webp" | "gif";
 
-export type BaseUniformSpec<TType extends string, TValue> = {
+export type BaseUniformSpec<TType extends UniformType, TValue> = {
   type: TType;
   value: TValue;
   label?: string;
@@ -88,17 +86,6 @@ export function defineUniforms<U extends UniformSchema>(
   return define(uniformSpecHelpers);
 }
 
-export type UniformValue<K extends UniformKind = UniformKind> =
-  K extends "float"
-    ? number
-    : K extends "vec2"
-      ? [number, number]
-      : K extends "vec3"
-        ? [number, number, number]
-        : K extends "vec4"
-          ? [number, number, number, number]
-          : TextureSource;
-
 export type UniformSpecValue<S extends UniformSpec> = S["value"];
 
 export type RuntimeUniform<
@@ -124,15 +111,6 @@ export type RuntimeUniforms<U extends UniformSchema> = {
 export type InternalRuntimeUniforms<U extends UniformSchema> = {
   readonly [K in keyof U]: InternalRuntimeUniform<UniformSpecValue<U[K]>, U[K]>;
 };
-
-export type Uniform<K extends UniformKind = UniformKind> = {
-  readonly kind: K;
-  get(): UniformValue<K>;
-  set(value: UniformValue<K>): void;
-  consumeDirty(): boolean;
-};
-
-export type UniformMap = Record<string, Uniform>;
 
 function equalValue(
   a: number | TextureSource | readonly number[],
@@ -184,57 +162,7 @@ export function createRuntimeUniforms<U extends UniformSchema>(
   ) as InternalRuntimeUniforms<U>;
 }
 
-function makeUniform<K extends UniformKind>(
-  kind: K,
-  initialValue: UniformValue<K>,
-): Uniform<K> {
-  let value = copyValue(initialValue);
-  let dirty = true;
-
-  return {
-    kind,
-    get() {
-      return copyValue(value);
-    },
-    set(nextValue) {
-      // Texture uniforms skip equality checking — the async load cost makes
-      // the optimisation pointless, and it means .set(sameUrl) always works
-      // as a retry after a failed load without any special error handling.
-      if (kind !== "texture2D" && equalValue(value, nextValue)) return;
-      value = copyValue(nextValue);
-      dirty = true;
-    },
-    consumeDirty() {
-      const wasDirty = dirty;
-      dirty = false;
-      return wasDirty;
-    },
-  };
-}
-
-export const uniform = {
-  float(value: number): Uniform<"float"> {
-    return makeUniform("float", value);
-  },
-  vec2(value: [number, number]): Uniform<"vec2"> {
-    return makeUniform("vec2", value);
-  },
-  vec3(value: [number, number, number]): Uniform<"vec3"> {
-    return makeUniform("vec3", value);
-  },
-  vec4(value: [number, number, number, number]): Uniform<"vec4"> {
-    return makeUniform("vec4", value);
-  },
-  texture2D(source: TextureSource): Uniform<"texture2D"> {
-    return makeUniform("texture2D", source);
-  },
-};
-
-export function uniformKindToGlslType(kind: UniformKind): GlslType {
-  return kind === "texture2D" ? "sampler2D" : kind;
-}
-
-const UNIFORM_TYPES = new Set<UniformKind>([
+const UNIFORM_TYPES = new Set<UniformType>([
   "float",
   "vec2",
   "vec3",
@@ -251,9 +179,7 @@ const RESERVED_UNIFORM_KEYS = new Set([
   "u",
 ]);
 
-export function validateUniformMap(
-  uniforms: UniformSchema | UniformMap | undefined,
-): void {
+export function validateUniformMap(uniforms: UniformSchema | undefined): void {
   if (!uniforms) return;
 
   for (const [key, spec] of Object.entries(uniforms)) {
@@ -266,10 +192,9 @@ export function validateUniformMap(
       throw new Error(`Custom uniform key "${key}" is reserved.`);
     }
 
-    const type = "type" in spec ? spec.type : spec.kind;
-    if (!UNIFORM_TYPES.has(type)) {
+    if (!UNIFORM_TYPES.has(spec.type)) {
       throw new Error(
-        `Custom uniform "${key}" has invalid type "${String(type)}". Expected one of: ${[...UNIFORM_TYPES].join(", ")}.`,
+        `Custom uniform "${key}" has invalid type "${String(spec.type)}". Expected one of: ${[...UNIFORM_TYPES].join(", ")}.`,
       );
     }
   }
