@@ -1,5 +1,5 @@
 import type { NODE, GLSL_TYPE } from "./ast.ts";
-import type { UniformSchema } from "./uniform.ts";
+import type { UniformSchema } from "./uniforms";
 
 // ---------------------------------------------------------------------------
 // AST node types

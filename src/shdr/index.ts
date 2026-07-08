@@ -2,7 +2,7 @@
 export { compileFragment, compileFn } from "./compile.ts";
 export { createShader } from "./runtime.ts";
 export type { ShaderOptions, ShaderInstance } from "./runtime.ts";
-export { defineUniforms } from "./uniform.ts";
+export { defineUniforms } from "./uniforms";
 export type {
   TextureSource,
   TextureFileExtension,
@@ -20,7 +20,7 @@ export type {
   UniformSpecHelpers,
   RuntimeUniform,
   RuntimeUniforms,
-} from "./uniform.ts";
+} from "./uniforms";
 export type { FragmentFn, Builtins } from "./compile.ts";
 export type {
   ExprProxy,
