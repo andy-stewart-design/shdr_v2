@@ -2,9 +2,14 @@ import { compileFragment, type FragmentFn } from "./compile.ts";
 import {
   createRuntimeUniforms,
   validateUniformMap,
+  type FloatUniformSpec,
   type InternalRuntimeUniforms,
   type RuntimeUniforms,
+  type Texture2DUniformSpec,
   type UniformSchema,
+  type Vec2UniformSpec,
+  type Vec3UniformSpec,
+  type Vec4UniformSpec,
 } from "./uniform.ts";
 
 // ---------------------------------------------------------------------------
@@ -76,7 +81,52 @@ function linkProgram(
   return program;
 }
 
-type RuntimeUniformHandle = InternalRuntimeUniforms<UniformSchema>[string];
+type FloatRuntimeUniform = InternalRuntimeUniforms<{
+  value: FloatUniformSpec;
+}>["value"];
+type Vec2RuntimeUniform = InternalRuntimeUniforms<{
+  value: Vec2UniformSpec;
+}>["value"];
+type Vec3RuntimeUniform = InternalRuntimeUniforms<{
+  value: Vec3UniformSpec;
+}>["value"];
+type Vec4RuntimeUniform = InternalRuntimeUniforms<{
+  value: Vec4UniformSpec;
+}>["value"];
+type Texture2DRuntimeUniform = InternalRuntimeUniforms<{
+  value: Texture2DUniformSpec;
+}>["value"];
+
+type RuntimeUniformHandle =
+  | FloatRuntimeUniform
+  | Vec2RuntimeUniform
+  | Vec3RuntimeUniform
+  | Vec4RuntimeUniform
+  | Texture2DRuntimeUniform;
+
+function isTexture2DUniform(
+  uniform: RuntimeUniformHandle,
+): uniform is Texture2DRuntimeUniform {
+  return uniform.schema.type === "texture2D";
+}
+
+function isFloatUniform(
+  uniform: RuntimeUniformHandle,
+): uniform is FloatRuntimeUniform {
+  return uniform.schema.type === "float";
+}
+
+function isVec2Uniform(uniform: RuntimeUniformHandle): uniform is Vec2RuntimeUniform {
+  return uniform.schema.type === "vec2";
+}
+
+function isVec3Uniform(uniform: RuntimeUniformHandle): uniform is Vec3RuntimeUniform {
+  return uniform.schema.type === "vec3";
+}
+
+function isVec4Uniform(uniform: RuntimeUniformHandle): uniform is Vec4RuntimeUniform {
+  return uniform.schema.type === "vec4";
+}
 
 type RuntimeUniform = {
   uniform: RuntimeUniformHandle;
@@ -96,9 +146,7 @@ function makeRuntimeUniform(
 ): RuntimeUniform {
   const location = gl.getUniformLocation(program, `u_${name}`);
 
-  const uniformType = uniform.schema.type;
-
-  if (uniformType === "texture2D") {
+  if (isTexture2DUniform(uniform)) {
     const resolutionLocation = gl.getUniformLocation(
       program,
       `u_${name}_resolution`,
@@ -173,7 +221,7 @@ function makeRuntimeUniform(
         if (location) gl.uniform1i(location, textureUnit);
       },
       apply() {
-        loadTexture(uniform.get() as string | File | Blob);
+        loadTexture(uniform.get());
       },
       destroy() {
         destroyed = true;
@@ -188,20 +236,14 @@ function makeRuntimeUniform(
     location,
     apply() {
       if (!location) return;
-      const value = uniform.get();
-      switch (uniformType) {
-        case "float":
-          gl.uniform1f(location, value as number);
-          break;
-        case "vec2":
-          gl.uniform2fv(location, value as [number, number]);
-          break;
-        case "vec3":
-          gl.uniform3fv(location, value as [number, number, number]);
-          break;
-        case "vec4":
-          gl.uniform4fv(location, value as [number, number, number, number]);
-          break;
+      if (isFloatUniform(uniform)) {
+        gl.uniform1f(location, uniform.get());
+      } else if (isVec2Uniform(uniform)) {
+        gl.uniform2fv(location, uniform.get());
+      } else if (isVec3Uniform(uniform)) {
+        gl.uniform3fv(location, uniform.get());
+      } else if (isVec4Uniform(uniform)) {
+        gl.uniform4fv(location, uniform.get());
       }
     },
   };
