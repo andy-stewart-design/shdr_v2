@@ -1,5 +1,5 @@
-import { refProxy, toNode, glslTypeOf, compileExpr } from "./ast.ts";
-import { fragmentBuiltins, type Builtins } from "./context";
+import { refProxy, toNode, glslTypeOf, compileExpr } from "./ast";
+import { fragmentBuiltins, type Builtins } from "./context/builtins";
 import {
   createUniformExprs,
   emitUniformDeclarations,

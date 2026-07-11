@@ -1,10 +1,9 @@
-import { NODE, makeProxy, refProxy, toNode } from "./ast.ts";
-import { compileFn } from "./compile.ts";
-import { createLocalContext, fnBuiltins, type LocalContext } from "./context";
+import { NODE, makeProxy, refProxy, toNode } from "./ast";
+import { compileFn } from "./compile";
+import { createFnContext, type FnContext } from "./context/fn";
 import type {
   AstNode,
   ExprProxy,
-  FnBodyStatement,
   FnDef,
   GlslType,
   ParamsToExprs,
@@ -12,19 +11,6 @@ import type {
   TupleToExprs,
   TupleShaderFn,
 } from "./types.ts";
-
-// ---------------------------------------------------------------------------
-// FnContext — the second arg passed to every fn body
-// ---------------------------------------------------------------------------
-
-/** The context object passed as the second argument to fn body callbacks.
- *  Mirrors the compileFragment callback context: destructure what you need.
- *  @example
- *  const rot = fn("rot", [Float], Mat2, ([a], { sin, cos, mat2 }) => {
- *    return mat2(cos(a), sin(a).neg(), sin(a), cos(a));
- *  });
- */
-export type FnContext = { $: LocalContext } & typeof fnBuiltins;
 
 type FnMetadata = {
   readonly _def: FnDef;
@@ -168,7 +154,7 @@ export function fn<R extends GlslType>(...args: FnImplementationArgs<R>) {
     );
   }
 
-  const locals = createLocalContext<FnBodyStatement>({ prefix: "_l" });
+  const fnContext = createFnContext();
 
   if (isTupleFnArgs(args)) {
     const [name, params, returnType, body] = args;
@@ -178,13 +164,13 @@ export function fn<R extends GlslType>(...args: FnImplementationArgs<R>) {
     );
     const paramRefs = params.map((t, i) => refProxy([`_p${i}`], t));
 
-    const returnValue = body(paramRefs, { $: locals.context, ...fnBuiltins });
+    const returnValue = body(paramRefs, fnContext.ctx);
 
     const def: FnDef = {
       name,
       params: paramSchema,
       returnType,
-      body: locals.statements,
+      body: fnContext.statements,
       returnExpr: toNode(returnValue),
     };
 
@@ -214,13 +200,13 @@ export function fn<R extends GlslType>(...args: FnImplementationArgs<R>) {
       Object.entries(params).map(([key, type]) => [key, refProxy([key], type)]),
     );
 
-    const returnValue = body(paramRefs, { $: locals.context, ...fnBuiltins });
+    const returnValue = body(paramRefs, fnContext.ctx);
 
     const def: FnDef = {
       name,
       params,
       returnType,
-      body: locals.statements,
+      body: fnContext.statements,
       returnExpr: toNode(returnValue),
     };
 

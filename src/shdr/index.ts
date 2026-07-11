@@ -1,7 +1,7 @@
 // Public API
-export { compileFragment, compileFn } from "./compile.ts";
-export { createShader } from "./runtime.ts";
-export type { ShaderOptions, ShaderInstance } from "./runtime.ts";
+export { compileFragment, compileFn } from "./compile";
+export { createShader } from "./runtime";
+export type { ShaderOptions, ShaderInstance } from "./runtime";
 export { defineUniforms } from "./uniforms";
 export type {
   TextureSource,
@@ -21,8 +21,8 @@ export type {
   RuntimeUniform,
   RuntimeUniforms,
 } from "./uniforms";
-export type { FragmentFn } from "./compile.ts";
-export type { Builtins } from "./context";
+export type { FragmentFn } from "./compile";
+export type { Builtins } from "./context/builtins";
 export type {
   ExprProxy,
   TextureUniformExpr,
@@ -34,21 +34,21 @@ export type {
   ParamsToExprs,
   TupleShaderFn,
   TupleToExprs,
-} from "./types.ts";
+} from "./types";
 
 // GLSL type tokens (dual-namespace: value + type)
-export { Float, Vec2, Vec3, Vec4, Mat2 } from "./glsl-types.ts";
+export { Float, Vec2, Vec3, Vec4, Mat2 } from "./glsl-types";
 export type {
   Float as FloatT,
   Vec2 as Vec2T,
   Vec3 as Vec3T,
   Vec4 as Vec4T,
   Mat2 as Mat2T,
-} from "./glsl-types.ts";
+} from "./glsl-types";
 
 // User-defined functions
-export { fn } from "./fn.ts";
-export type { FnContext } from "./fn.ts";
+export { fn } from "./fn";
+export type { FnContext } from "./context/fn";
 
 // Builtins re-exported for direct use with compileFragment
 export {
