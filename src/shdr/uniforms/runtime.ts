@@ -1,4 +1,4 @@
-import type { TextureSource, UniformSchema, UniformSpec } from "./schema.ts";
+import type { TextureSource, UniformSchema, UniformSpec } from "./schema";
 
 export type UniformSpecValue<S extends UniformSpec> = S["value"];
 
@@ -75,4 +75,3 @@ export function createRuntimeUniforms<U extends UniformSchema>(
     ]),
   ) as InternalRuntimeUniforms<U>;
 }
-

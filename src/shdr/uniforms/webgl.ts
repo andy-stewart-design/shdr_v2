@@ -4,8 +4,8 @@ import type {
   Vec2UniformSpec,
   Vec3UniformSpec,
   Vec4UniformSpec,
-} from "./schema.ts";
-import type { InternalRuntimeUniforms } from "./runtime.ts";
+} from "./schema";
+import type { InternalRuntimeUniforms } from "./runtime";
 
 type FloatRuntimeUniform = InternalRuntimeUniforms<{
   value: FloatUniformSpec;
@@ -42,15 +42,21 @@ function isFloatUniform(
   return uniform.schema.type === "float";
 }
 
-function isVec2Uniform(uniform: RuntimeUniformHandle): uniform is Vec2RuntimeUniform {
+function isVec2Uniform(
+  uniform: RuntimeUniformHandle,
+): uniform is Vec2RuntimeUniform {
   return uniform.schema.type === "vec2";
 }
 
-function isVec3Uniform(uniform: RuntimeUniformHandle): uniform is Vec3RuntimeUniform {
+function isVec3Uniform(
+  uniform: RuntimeUniformHandle,
+): uniform is Vec3RuntimeUniform {
   return uniform.schema.type === "vec3";
 }
 
-function isVec4Uniform(uniform: RuntimeUniformHandle): uniform is Vec4RuntimeUniform {
+function isVec4Uniform(
+  uniform: RuntimeUniformHandle,
+): uniform is Vec4RuntimeUniform {
   return uniform.schema.type === "vec4";
 }
 
@@ -174,4 +180,3 @@ export function createWebGLUniformBinding(
     },
   };
 }
-

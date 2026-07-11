@@ -85,4 +85,3 @@ export function defineUniforms<U extends UniformSchema>(
 ): U {
   return define(uniformSpecHelpers);
 }
-

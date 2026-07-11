@@ -98,9 +98,9 @@ Owns compile-time uniform behavior:
 Possible exports:
 
 ```ts
-uniformKindToGlslType(kind)
-emitUniformDeclarations(uniforms)
-createUniformExprs(uniforms)
+uniformKindToGlslType(kind);
+emitUniformDeclarations(uniforms);
+createUniformExprs(uniforms);
 ```
 
 ### `webgl.ts`
@@ -225,9 +225,11 @@ Move uniform-specific compile helpers out of `src/shdr/compile.ts`.
 Candidate helpers:
 
 ```ts
-function uniformKindToGlslType(kind: UniformKind): GlslType
-function emitUniformDeclarations(uniforms: UniformSchema): string[]
-function createUniformExprs(uniforms: UniformSchema): UniformExprs<UniformSchema>
+function uniformKindToGlslType(kind: UniformKind): GlslType;
+function emitUniformDeclarations(uniforms: UniformSchema): string[];
+function createUniformExprs(
+  uniforms: UniformSchema,
+): UniformExprs<UniformSchema>;
 ```
 
 `compileFragment` should delegate uniform declaration/proxy logic to this module.

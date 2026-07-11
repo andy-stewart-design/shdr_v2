@@ -1,7 +1,12 @@
-import { refProxy } from "../ast.ts";
+import { refProxy } from "../ast";
 import { texture, vec2 } from "../builtins";
-import type { Expr, GlslType, ShaderContext, TextureUniformExpr } from "../types.ts";
-import type { UniformSchema, UniformType } from "./schema.ts";
+import type {
+  Expr,
+  GlslType,
+  ShaderContext,
+  TextureUniformExpr,
+} from "../types";
+import type { UniformSchema, UniformType } from "./schema";
 
 export function uniformTypeToGlslType(type: UniformType): GlslType {
   return type === "texture2D" ? "sampler2D" : type;
