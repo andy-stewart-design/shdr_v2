@@ -1,6 +1,6 @@
-import { compileFragment, type FragmentFn } from "../../shdr/index.ts";
-import { SPACING_FACTOR } from "./constants.ts";
-import { circles } from "./utils.shdr.ts";
+import { compileFragment, type FragmentFn } from "@shdr/index";
+import { SPACING_FACTOR } from "./constants";
+import { circles } from "./utils.shdr";
 
 const _fragment: FragmentFn = ({
   $,

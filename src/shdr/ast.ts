@@ -7,17 +7,17 @@ export const GLSL_TYPE = Symbol("glslType");
 // Core helpers
 // ---------------------------------------------------------------------------
 
-export function makeExpr<T extends GlslType>(node: AstNode, type: T): Expr<T> {
-  return { [NODE]: node, [GLSL_TYPE]: type } as unknown as Expr<T>;
+export function makeExpr<T extends GlslType>(node: AstNode, type: T) {
+  return { [NODE]: node, [GLSL_TYPE]: type } satisfies Expr<T>;
 }
 
-export function glslTypeOf(value: Expr<GlslType>): GlslType {
-  return (value as unknown as Record<symbol, GlslType>)[GLSL_TYPE];
+export function glslTypeOf<T extends GlslType>(value: Expr<T>): T {
+  return value[GLSL_TYPE];
 }
 
 export function toNode(value: Expr<GlslType> | number): AstNode {
   if (typeof value === "number") return { kind: "number", value };
-  return (value as unknown as Record<symbol, AstNode>)[NODE];
+  return value[NODE];
 }
 
 // ---------------------------------------------------------------------------
@@ -54,6 +54,10 @@ export function compileExpr(node: AstNode): string {
 const ARITH_OPS = { add: "+", sub: "-", mul: "*", div: "/" } as const;
 type ArithKey = keyof typeof ARITH_OPS;
 
+function isArithKey(prop: string): prop is ArithKey {
+  return Object.hasOwn(ARITH_OPS, prop);
+}
+
 export function makeProxy<T extends GlslType>(
   node: AstNode,
   type: T,
@@ -77,9 +81,7 @@ export function makeProxy<T extends GlslType>(
       if (prop === "mul") {
         return (other: Expr<GlslType> | number) => {
           const otherType: GlslType =
-            typeof other === "number"
-              ? "float"
-              : glslTypeOf(other as Expr<GlslType>);
+            typeof other === "number" ? "float" : glslTypeOf(other);
           const resultType: GlslType =
             (type === "mat2" && otherType === "vec2") ||
             (type === "vec2" && otherType === "mat2")
@@ -92,8 +94,8 @@ export function makeProxy<T extends GlslType>(
         };
       }
 
-      if (prop in ARITH_OPS) {
-        const op = ARITH_OPS[prop as ArithKey];
+      if (isArithKey(prop)) {
+        const op = ARITH_OPS[prop];
         return (other: Expr<GlslType> | number): ExprProxy<T> =>
           makeProxy<T>(
             { kind: "binop", op, left: node, right: toNode(other) },
@@ -117,13 +119,10 @@ export function makeProxy<T extends GlslType>(
               : "vec4";
       return makeProxy({ kind: "field", expr: node, field: prop }, swizzleType);
     },
-  }) as unknown as ExprProxy<T>;
+  }) as ExprProxy<T>;
 }
 
-export function refProxy<T extends GlslType>(
-  path: string[],
-  type: T,
-): ExprProxy<T> {
+export function refProxy<T extends GlslType>(path: string[], type: T) {
   return makeProxy<T>({ kind: "ref", path }, type);
 }
 
@@ -131,6 +130,6 @@ export function makeCall<T extends GlslType>(
   name: string,
   args: (Expr<GlslType> | number)[],
   type: T,
-): ExprProxy<T> {
+) {
   return makeProxy<T>({ kind: "call", name, args: args.map(toNode) }, type);
 }

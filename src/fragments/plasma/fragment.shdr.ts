@@ -1,9 +1,5 @@
-import {
-  compileFragment,
-  defineUniforms,
-  type FragmentFn,
-} from "../../shdr/index.ts";
-import { filmGrain } from "../utils/grain.shdr.ts";
+import { compileFragment, defineUniforms, type FragmentFn } from "@shdr/index";
+import { filmGrain } from "@/fragments/utils/grain.shdr";
 
 export const uniforms = defineUniforms((u) => ({
   scale: u.float(6.0, { min: 1, max: 20, step: 0.1 }),

@@ -1,51 +1,17 @@
-import { refProxy, toNode, glslTypeOf, compileExpr } from "./ast.ts";
+import { compileExpr } from "./ast";
+import { createFragmentContext, type FragmentFn } from "./context/fragment";
 import {
-  float,
-  vec2,
-  vec3,
-  vec4,
-  mat2,
-  sin,
-  cos,
-  abs,
-  fract,
-  sqrt,
-  floor,
-  mix,
-  smoothstep,
-  radians,
-  dot,
-  length,
-  add,
-  sub,
-  mul,
-  div,
-  neg,
-  step,
-  mod,
-  asin,
-  atan,
-  min,
-  max,
-  texture,
-} from "./builtins.ts";
-import { uniformKindToGlslType, validateUniformMap } from "./uniform.ts";
-import type { UniformKind, UniformMap, UniformSchema } from "./uniform.ts";
+  emitUniformDeclarations,
+  validateUniformSchema,
+  type UniformSchema,
+} from "./uniforms";
 import type {
   AstNode,
   BodyStatement,
   ConstStatement,
-  Expr,
-  ExprProxy,
   FnDef,
   GlslType,
-  ShaderContext,
-  TextureUniformExpr,
-} from "./types.ts";
-
-// ---------------------------------------------------------------------------
-// Statement types (internal to the compiler)
-// ---------------------------------------------------------------------------
+} from "./types";
 
 // ---------------------------------------------------------------------------
 // FnDef collection + emission
@@ -158,74 +124,6 @@ export function compileFn(shaderFn: { readonly _def: FnDef }): string {
 }
 
 // ---------------------------------------------------------------------------
-// Builtins bundle passed into the fragment function
-// ---------------------------------------------------------------------------
-
-export type Builtins = {
-  float: typeof float;
-  vec2: typeof vec2;
-  vec3: typeof vec3;
-  vec4: typeof vec4;
-  mat2: typeof mat2;
-  texture: typeof texture;
-  sin: typeof sin;
-  cos: typeof cos;
-  abs: typeof abs;
-  fract: typeof fract;
-  sqrt: typeof sqrt;
-  floor: typeof floor;
-  mix: typeof mix;
-  smoothstep: typeof smoothstep;
-  radians: typeof radians;
-  dot: typeof dot;
-  length: typeof length;
-  add: typeof add;
-  sub: typeof sub;
-  mul: typeof mul;
-  div: typeof div;
-  neg: typeof neg;
-  step: typeof step;
-  mod: typeof mod;
-  asin: typeof asin;
-  atan: typeof atan;
-  min: typeof min;
-  max: typeof max;
-};
-
-type UniformShape = UniformSchema | UniformMap;
-
-function getUniformType(uniform: UniformShape[string]): UniformKind {
-  return "type" in uniform ? uniform.type : uniform.kind;
-}
-
-function textureUniformProxy(name: string): TextureUniformExpr {
-  const sampler = refProxy([`u_${name}`], "sampler2D");
-  return new Proxy(sampler, {
-    get(target, prop, receiver) {
-      if (prop === "resolution")
-        return refProxy([`u_${name}_resolution`], "vec2");
-      if (prop === "sample") {
-        return (
-          ...args:
-            | [Expr<"vec2">]
-            | [Expr<"float"> | number, Expr<"float"> | number]
-        ) => {
-          const uv = args.length === 1 ? args[0] : vec2(args[0], args[1]);
-          return texture(sampler, uv);
-        };
-      }
-      return Reflect.get(target, prop, receiver);
-    },
-  }) as TextureUniformExpr;
-}
-
-export type FragmentFn<U extends UniformShape = UniformSchema> = (
-  ctx: {
-    $: ShaderContext<U>;
-  } & Builtins,
-) => void;
-
-// ---------------------------------------------------------------------------
 // GLSL keyword map
 // ---------------------------------------------------------------------------
 
@@ -242,138 +140,15 @@ export const glslKeyword: Record<GlslType, string> = {
 // compileFragment — DSL function → GLSL string
 // ---------------------------------------------------------------------------
 
-export function compileFragment<U extends UniformShape = UniformSchema>(
+export function compileFragment<U extends UniformSchema = UniformSchema>(
   fn: FragmentFn<U>,
   options: { uniforms?: U } = {},
 ): string {
-  validateUniformMap(options.uniforms);
-  const constants: ConstStatement[] = [];
-  const statements: BodyStatement[] = [];
+  validateUniformSchema(options.uniforms);
+  const customUniforms = options.uniforms ?? ({} as U);
+  const { ctx, statements, constants } = createFragmentContext(customUniforms);
 
-  let constCounter = 0;
-  function makeConst(name: string, value: number): ExprProxy<"float">;
-  function makeConst<T extends GlslType>(
-    name: string,
-    value: ExprProxy<T>,
-  ): ExprProxy<T>;
-  function makeConst(value: number): ExprProxy<"float">;
-  function makeConst<T extends GlslType>(value: ExprProxy<T>): ExprProxy<T>;
-  function makeConst(nameOrValue: unknown, maybeValue?: unknown): unknown {
-    const hasName = typeof nameOrValue === "string";
-    const name = hasName ? (nameOrValue as string) : `_c${constCounter++}`;
-    const value = hasName ? maybeValue : nameOrValue;
-    const isNum = typeof value === "number";
-    const node: AstNode = isNum
-      ? { kind: "number", value: value as number }
-      : toNode(value as Expr<GlslType>);
-    const varType: GlslType = isNum
-      ? "float"
-      : glslTypeOf(value as Expr<GlslType>);
-    constants.push({ type: "const", name, varType, value: node });
-    return refProxy([name], varType);
-  }
-
-  let varCounter = 0;
-  const customUniforms: UniformShape = options.uniforms ?? {};
-
-  const $: ShaderContext<U> = {
-    let<T extends GlslType>(
-      nameOrValue: string | ExprProxy<T>,
-      maybeValue?: ExprProxy<T>,
-    ): ExprProxy<T> {
-      const name =
-        typeof nameOrValue === "string" ? nameOrValue : `_v${varCounter++}`;
-      const value = typeof nameOrValue === "string" ? maybeValue! : nameOrValue;
-      statements.push({
-        type: "let",
-        name,
-        varType: glslTypeOf(value),
-        value: toNode(value),
-      });
-      return refProxy<T>([name], glslTypeOf(value) as T);
-    },
-    const: makeConst,
-    output(value: Expr<"vec4">) {
-      statements.push({
-        type: "assign",
-        target: "fragColor",
-        value: toNode(value),
-      });
-    },
-    u: new Proxy(
-      {},
-      {
-        get(_target, prop) {
-          if (typeof prop !== "string") return undefined;
-          const uniform = customUniforms[prop];
-          if (uniform) {
-            const type = getUniformType(uniform);
-            return type === "texture2D"
-              ? textureUniformProxy(prop)
-              : refProxy([`u_${prop}`], uniformKindToGlslType(type));
-          }
-          if (prop.endsWith("Resolution")) {
-            const base = prop.slice(0, -"Resolution".length);
-            const textureUniform = customUniforms[base];
-            if (
-              textureUniform &&
-              getUniformType(textureUniform) === "texture2D"
-            ) {
-              return refProxy([`u_${base}_resolution`], "vec2");
-            }
-          }
-          throw new Error(`Unknown custom uniform "${prop}".`);
-        },
-      },
-    ) as ShaderContext<U>["u"],
-    get uv(): ExprProxy<"vec2"> {
-      return refProxy(["shdr_uv"], "vec2");
-    },
-    get time(): ExprProxy<"float"> {
-      return refProxy(["u_time"], "float");
-    },
-    get resolution(): ExprProxy<"vec2"> {
-      return refProxy(["u_resolution"], "vec2");
-    },
-    get mouse(): ExprProxy<"vec2"> {
-      return refProxy(["u_mouse"], "vec2");
-    },
-    get coord(): ExprProxy<"vec2"> {
-      return refProxy(["gl_FragCoord", "xy"], "vec2");
-    },
-  };
-
-  fn({
-    $,
-    float,
-    vec2,
-    vec3,
-    vec4,
-    mat2,
-    texture,
-    sin,
-    cos,
-    abs,
-    fract,
-    sqrt,
-    floor,
-    mix,
-    smoothstep,
-    radians,
-    dot,
-    length,
-    add,
-    sub,
-    mul,
-    div,
-    neg,
-    step,
-    mod,
-    asin,
-    atan,
-    min,
-    max,
-  });
+  fn(ctx);
 
   const fnDefs = collectFnDefs(statements, constants);
 
@@ -383,12 +158,7 @@ export function compileFragment<U extends UniformShape = UniformSchema>(
     "uniform float u_time;",
     "uniform vec2 u_resolution;",
     "uniform vec2 u_mouse;",
-    ...Object.entries(customUniforms).flatMap(([name, uniform]) => {
-      const type = getUniformType(uniform);
-      return type === "texture2D"
-        ? [`uniform sampler2D u_${name};`, `uniform vec2 u_${name}_resolution;`]
-        : [`uniform ${glslKeyword[type]} u_${name};`];
-    }),
+    ...emitUniformDeclarations(customUniforms),
     "out vec4 fragColor;",
     ...(constants.length > 0 ? [""] : []),
     ...constants.map(

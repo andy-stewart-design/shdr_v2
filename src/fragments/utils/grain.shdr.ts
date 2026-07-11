@@ -1,4 +1,4 @@
-import { fn, Float, Vec2 } from "../../shdr/index.ts";
+import { fn, Float, Vec2 } from "@shdr/index";
 
 export const filmGrain = fn([Vec2], Float, ([p], { vec3, fract, dot }) => {
   const p3 = fract(vec3(p.x, p.y, p.x).mul(0.1031));

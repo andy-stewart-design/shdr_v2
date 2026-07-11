@@ -1,36 +1,26 @@
-import { compileFragment, type FragmentFn } from "./compile.ts";
+import { compileFragment } from "./compile";
+import type { FragmentFn } from "./context/fragment";
 import {
   createRuntimeUniforms,
-  validateUniformMap,
-  type InternalRuntimeUniforms,
+  validateUniformSchema,
+  createWebGLUniformBinding,
   type RuntimeUniforms,
-  type Uniform,
-  type UniformMap,
   type UniformSchema,
-} from "./uniform.ts";
+} from "./uniforms";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type UniformInput = UniformSchema | UniformMap;
-
-type ShaderRuntimeUniforms<U extends UniformInput> = U extends UniformSchema
-  ? RuntimeUniforms<U>
-  : U;
-
-type InternalShaderRuntimeUniforms<U extends UniformInput> =
-  U extends UniformSchema ? InternalRuntimeUniforms<U> : U;
-
-export interface ShaderOptions<U extends UniformInput = UniformSchema> {
+export interface ShaderOptions<U extends UniformSchema = UniformSchema> {
   canvas: HTMLCanvasElement;
   fragment: string | FragmentFn<U>;
   uniforms?: U;
 }
 
-export interface ShaderInstance<U extends UniformInput = UniformSchema> {
+export interface ShaderInstance<U extends UniformSchema = UniformSchema> {
   /** Live runtime uniform handles. */
-  readonly u: ShaderRuntimeUniforms<U>;
+  readonly u: RuntimeUniforms<U>;
   /** Stop the render loop and free all WebGL resources. */
   destroy(): void;
 }
@@ -87,152 +77,15 @@ function linkProgram(
   return program;
 }
 
-type RuntimeUniformHandle =
-  | Uniform
-  | InternalRuntimeUniforms<UniformSchema>[string];
-
-type RuntimeUniform = {
-  uniform: RuntimeUniformHandle;
-  location: WebGLUniformLocation | null;
-  /** Bind the sampler unit — cheap, called every frame to survive program re-links. */
-  bindSampler?(): void;
-  apply(): void;
-  destroy?(): void;
-};
-
-function makeRuntimeUniform(
-  gl: WebGL2RenderingContext,
-  program: WebGLProgram,
-  name: string,
-  uniform: RuntimeUniformHandle,
-  textureUnit: number,
-): RuntimeUniform {
-  const location = gl.getUniformLocation(program, `u_${name}`);
-
-  const uniformType = "schema" in uniform ? uniform.schema.type : uniform.kind;
-
-  if (uniformType === "texture2D") {
-    const resolutionLocation = gl.getUniformLocation(
-      program,
-      `u_${name}_resolution`,
-    );
-    const glTexture = gl.createTexture();
-    let loadId = 0;
-    let destroyed = false;
-
-    gl.activeTexture(gl.TEXTURE0 + textureUnit);
-    gl.bindTexture(gl.TEXTURE_2D, glTexture);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texImage2D(
-      gl.TEXTURE_2D,
-      0,
-      gl.RGBA,
-      1,
-      1,
-      0,
-      gl.RGBA,
-      gl.UNSIGNED_BYTE,
-      new Uint8Array([0, 0, 0, 255]),
-    );
-    if (resolutionLocation) gl.uniform2f(resolutionLocation, 1, 1);
-
-    function loadTexture(source: string | File | Blob) {
-      const currentLoadId = ++loadId;
-      const image = new Image();
-      const objectUrl =
-        source instanceof Blob ? URL.createObjectURL(source) : null;
-      const url = objectUrl ?? (source as string);
-
-      image.crossOrigin = source instanceof Blob ? "" : "anonymous";
-      image.onload = () => {
-        if (objectUrl) URL.revokeObjectURL(objectUrl);
-        if (destroyed || currentLoadId !== loadId) return;
-        gl.activeTexture(gl.TEXTURE0 + textureUnit);
-        gl.bindTexture(gl.TEXTURE_2D, glTexture);
-        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-        gl.texImage2D(
-          gl.TEXTURE_2D,
-          0,
-          gl.RGBA,
-          gl.RGBA,
-          gl.UNSIGNED_BYTE,
-          image,
-        );
-        if (resolutionLocation) {
-          gl.uniform2f(
-            resolutionLocation,
-            image.naturalWidth,
-            image.naturalHeight,
-          );
-        }
-      };
-      image.onerror = () => {
-        if (objectUrl) URL.revokeObjectURL(objectUrl);
-        if (destroyed || currentLoadId !== loadId) return;
-        console.warn(`Failed to load texture uniform "${name}" from ${url}`);
-        // Retry is handled automatically: texture uniforms skip equality
-        // checks in set(), so calling .set(sameUrl) always triggers a reload.
-      };
-      image.src = url;
-    }
-
-    return {
-      uniform,
-      location,
-      bindSampler() {
-        if (location) gl.uniform1i(location, textureUnit);
-      },
-      apply() {
-        loadTexture(uniform.get() as string | File | Blob);
-      },
-      destroy() {
-        destroyed = true;
-        loadId++;
-        if (glTexture) gl.deleteTexture(glTexture);
-      },
-    };
-  }
-
-  return {
-    uniform,
-    location,
-    apply() {
-      if (!location) return;
-      const value = uniform.get();
-      switch (uniformType) {
-        case "float":
-          gl.uniform1f(location, value as number);
-          break;
-        case "vec2":
-          gl.uniform2fv(location, value as [number, number]);
-          break;
-        case "vec3":
-          gl.uniform3fv(location, value as [number, number, number]);
-          break;
-        case "vec4":
-          gl.uniform4fv(location, value as [number, number, number, number]);
-          break;
-      }
-    },
-  };
-}
-
 // ---------------------------------------------------------------------------
 // createShader — compile + run
 // ---------------------------------------------------------------------------
 
-function isUniformSchema(uniforms: UniformInput): uniforms is UniformSchema {
-  return Object.values(uniforms).every((uniform) => "type" in uniform);
-}
-
-export function createShader<U extends UniformInput = UniformSchema>(
+export function createShader<U extends UniformSchema = UniformSchema>(
   options: ShaderOptions<U>,
 ): ShaderInstance<U> {
   const { canvas } = options;
-  validateUniformMap(options.uniforms);
+  validateUniformSchema(options.uniforms);
 
   const glsl =
     typeof options.fragment === "string"
@@ -256,15 +109,10 @@ export function createShader<U extends UniformInput = UniformSchema>(
 
   let nextTextureUnit = 0;
   const inputUniforms = options.uniforms ?? ({} as U);
-  const liveUniforms = (
-    isUniformSchema(inputUniforms)
-      ? createRuntimeUniforms(inputUniforms)
-      : inputUniforms
-  ) as InternalShaderRuntimeUniforms<U>;
+  const liveUniforms = createRuntimeUniforms(inputUniforms);
   const customUniforms = Object.entries(liveUniforms).map(([name, uniform]) => {
-    const uniformType =
-      "schema" in uniform ? uniform.schema.type : uniform.kind;
-    return makeRuntimeUniform(
+    const uniformType = uniform.schema.type;
+    return createWebGLUniformBinding(
       gl,
       program,
       name,
@@ -340,7 +188,7 @@ export function createShader<U extends UniformInput = UniformSchema>(
 
   // --- Cleanup ---
   return {
-    u: liveUniforms as ShaderRuntimeUniforms<U>,
+    u: liveUniforms,
     destroy() {
       destroyed = true;
       cancelAnimationFrame(rafId);

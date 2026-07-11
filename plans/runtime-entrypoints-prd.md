@@ -57,8 +57,8 @@ Compiler / authoring API:
 export {
   compileFragment,
   compileFn,
+  defineUniforms,
   fn,
-  uniform,
   Float,
   Vec2,
   Vec3,
@@ -129,12 +129,14 @@ export { createShader } from "./runtime.ts";
 export type { ShaderOptions, ShaderInstance } from "./runtime.ts";
 ```
 
-Then sketches can import:
+Then sketches can import only the WebGL runtime from the backend entry:
 
 ```ts
-import { compileFragment } from "../../shdr/index.ts";
 import { createShader } from "../../shdr/webgl.ts";
+import { fragment, uniforms } from "./fragment.shdr.ts";
 ```
+
+`fragment.shdr.ts` remains the authoring/compiler boundary and can import `compileFragment`, `defineUniforms`, `fn`, builtins, and type helpers from `../../shdr/index.ts`.
 
 This makes the split visible without requiring packaging work immediately.
 
@@ -142,16 +144,28 @@ This makes the split visible without requiring packaging work immediately.
 
 ## Long-Term Build-Time Compilation Direction
 
-Today, client code often imports a fragment function directly:
+After the schema-first uniforms work, local sketch modules already follow an interim split:
 
 ```ts
+// fragment.shdr.ts — authoring/compiler boundary
+export const uniforms = defineUniforms((u) => ({
+  pixelation: u.float(40),
+}));
+
+const _fragment: FragmentFn<typeof uniforms> = ({ $ }) => {
+  // shader DSL here
+};
+
+export const fragment = compileFragment(_fragment, { uniforms });
+
+// index.ts — DOM/runtime boundary
 import { fragment, uniforms } from "./fragment.shdr.ts";
 import { createShader } from "shdr/webgl";
 
 createShader({ canvas, fragment, uniforms });
 ```
 
-This means the client bundle can include DSL/compiler code because `createShader(...)` compiles the fragment at runtime.
+This still ships compiler code today because `fragment.shdr.ts` runs in the browser bundle, but it clarifies the module boundary: shader authoring and compilation live in `.shdr.ts`; DOM/runtime setup lives in normal `.ts`.
 
 Long-term, `.shdr.ts` modules could compile to shader artifacts during the Vite transform/build:
 
@@ -165,9 +179,9 @@ createShader({ canvas, shader });
 where `shader` is something like:
 
 ```ts
-type CompiledShaderModule<U> = {
+type CompiledShaderModule<U extends UniformSchema = UniformSchema> = {
   glsl: string;
-  uniforms?: U;
+  uniformSchema: U;
   inspectViews?: string[];
 };
 ```
@@ -175,7 +189,7 @@ type CompiledShaderModule<U> = {
 This would allow the browser bundle to include:
 
 - compiled GLSL string
-- runtime uniform objects
+- serializable uniform schema
 - small WebGL renderer
 
 and avoid shipping:
@@ -232,12 +246,14 @@ Add:
 src/shdr/webgl.ts
 ```
 
-Update sketches to import:
+Update sketches to import the runtime from the backend-specific entry:
 
 ```ts
 import { createShader } from "../../shdr/webgl.ts";
-import { compileFragment } from "../../shdr/index.ts";
+import { fragment, uniforms } from "./fragment.shdr.ts";
 ```
+
+Keep shader authoring/compiler imports inside `.shdr.ts` modules.
 
 Keep `createShader` exported from `src/shdr/index.ts` temporarily for backward compatibility.
 
@@ -301,6 +317,6 @@ once WGSL/WebGPU backend work begins.
 
 - Should `shdr` continue exporting `createShader` long-term, or should runtime imports eventually require `shdr/webgl`?
 - What should the compiled shader artifact shape be?
-- How should dynamic uniforms be represented in a build-time compiled shader module?
+- Should compiled shader artifacts use `uniformSchema`, `uniforms`, or another field name for schema metadata?
 - Should `.shdr.ts` default exports eventually become compiled shader modules?
 - Should dev mode keep runtime compilation for easier debugging while production uses precompiled artifacts?
