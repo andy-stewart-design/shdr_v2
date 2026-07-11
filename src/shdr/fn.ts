@@ -1,6 +1,6 @@
-import { NODE, makeProxy, refProxy, toNode, glslTypeOf } from "./ast.ts";
+import { NODE, makeProxy, refProxy, toNode } from "./ast.ts";
 import { compileFn } from "./compile.ts";
-import { fnBuiltins } from "./context";
+import { createLocalContext, fnBuiltins, type LocalContext } from "./context";
 import type {
   AstNode,
   ExprProxy,
@@ -17,14 +17,6 @@ import type {
 // FnContext — the second arg passed to every fn body
 // ---------------------------------------------------------------------------
 
-// The local statement builder available as $.let inside fn bodies
-export type LocalContext = {
-  /** Declare a named local variable inside the function body. */
-  let<T extends GlslType>(name: string, value: ExprProxy<T>): ExprProxy<T>;
-  /** Declare an auto-named local variable (_l0, _l1, …). */
-  let<T extends GlslType>(value: ExprProxy<T>): ExprProxy<T>;
-};
-
 /** The context object passed as the second argument to fn body callbacks.
  *  Mirrors the compileFragment callback context: destructure what you need.
  *  @example
@@ -33,29 +25,6 @@ export type LocalContext = {
  *  });
  */
 export type FnContext = { $: LocalContext } & typeof fnBuiltins;
-
-function makeLocalContext() {
-  const statements: FnBodyStatement[] = [];
-  let counter = 0;
-
-  const context: LocalContext = {
-    let<T extends GlslType>(
-      nameOrValue: string | ExprProxy<T>,
-      maybeValue?: ExprProxy<T>,
-    ): ExprProxy<T> {
-      const name =
-        typeof nameOrValue === "string" ? nameOrValue : `_l${counter++}`;
-      const value = typeof nameOrValue === "string" ? maybeValue! : nameOrValue;
-      const varType = glslTypeOf(value);
-
-      statements.push({ type: "let", name, varType, value: toNode(value) });
-
-      return refProxy([name], varType);
-    },
-  };
-
-  return { context, statements };
-}
 
 type FnMetadata = {
   readonly _def: FnDef;
@@ -199,7 +168,7 @@ export function fn<R extends GlslType>(...args: FnImplementationArgs<R>) {
     );
   }
 
-  const locals = makeLocalContext();
+  const locals = createLocalContext<FnBodyStatement>({ prefix: "_l" });
 
   if (isTupleFnArgs(args)) {
     const [name, params, returnType, body] = args;
