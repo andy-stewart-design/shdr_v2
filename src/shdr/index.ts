@@ -21,7 +21,7 @@ export type {
   RuntimeUniform,
   RuntimeUniforms,
 } from "./uniforms";
-export type { FragmentFn } from "./compile";
+export type { FragmentFn } from "./context/fragment";
 export type { Builtins } from "./context/builtins";
 export type {
   ExprProxy,

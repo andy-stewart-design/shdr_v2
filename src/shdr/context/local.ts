@@ -1,5 +1,5 @@
-import { glslTypeOf, refProxy, toNode } from "../ast.ts";
-import type { ExprProxy, FnBodyStatement, GlslType } from "../types.ts";
+import { glslTypeOf, refProxy, toNode } from "../ast";
+import type { AstNode, ExprProxy, GlslType } from "../types";
 
 export type LocalContext = {
   /** Declare a named local variable. */
@@ -8,7 +8,12 @@ export type LocalContext = {
   let<T extends GlslType>(value: ExprProxy<T>): ExprProxy<T>;
 };
 
-type LocalStatement = FnBodyStatement;
+type LocalStatement = {
+  type: "let";
+  name: string;
+  varType: GlslType;
+  value: AstNode;
+};
 
 export function createLocalContext<TStatement extends LocalStatement>(options: {
   prefix: string;

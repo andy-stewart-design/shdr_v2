@@ -1,4 +1,5 @@
-import { compileFragment, type FragmentFn } from "./compile.ts";
+import { compileFragment } from "./compile";
+import type { FragmentFn } from "./context/fragment";
 import {
   createRuntimeUniforms,
   validateUniformSchema,
