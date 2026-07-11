@@ -21,7 +21,8 @@ export type {
   RuntimeUniform,
   RuntimeUniforms,
 } from "./uniforms";
-export type { FragmentFn, Builtins } from "./compile.ts";
+export type { FragmentFn } from "./compile.ts";
+export type { Builtins } from "./context";
 export type {
   ExprProxy,
   TextureUniformExpr,

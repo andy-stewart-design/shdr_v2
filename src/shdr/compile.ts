@@ -1,40 +1,12 @@
 import { refProxy, toNode, glslTypeOf, compileExpr } from "./ast.ts";
-import {
-  float,
-  vec2,
-  vec3,
-  vec4,
-  mat2,
-  sin,
-  cos,
-  abs,
-  fract,
-  sqrt,
-  floor,
-  mix,
-  smoothstep,
-  radians,
-  dot,
-  length,
-  add,
-  sub,
-  mul,
-  div,
-  neg,
-  step,
-  mod,
-  asin,
-  atan,
-  min,
-  max,
-  texture,
-} from "./builtins";
+import { fragmentBuiltins, type Builtins } from "./context";
 import {
   createUniformExprs,
   emitUniformDeclarations,
   validateUniformSchema,
   type UniformSchema,
 } from "./uniforms";
+
 import type {
   AstNode,
   BodyStatement,
@@ -160,41 +132,6 @@ export function compileFn(shaderFn: { readonly _def: FnDef }): string {
   return collectFnDefsFrom(shaderFn._def).map(compileFnDef).join("\n");
 }
 
-// ---------------------------------------------------------------------------
-// Builtins bundle passed into the fragment function
-// ---------------------------------------------------------------------------
-
-export type Builtins = {
-  float: typeof float;
-  vec2: typeof vec2;
-  vec3: typeof vec3;
-  vec4: typeof vec4;
-  mat2: typeof mat2;
-  texture: typeof texture;
-  sin: typeof sin;
-  cos: typeof cos;
-  abs: typeof abs;
-  fract: typeof fract;
-  sqrt: typeof sqrt;
-  floor: typeof floor;
-  mix: typeof mix;
-  smoothstep: typeof smoothstep;
-  radians: typeof radians;
-  dot: typeof dot;
-  length: typeof length;
-  add: typeof add;
-  sub: typeof sub;
-  mul: typeof mul;
-  div: typeof div;
-  neg: typeof neg;
-  step: typeof step;
-  mod: typeof mod;
-  asin: typeof asin;
-  atan: typeof atan;
-  min: typeof min;
-  max: typeof max;
-};
-
 export type FragmentFn<U extends UniformSchema = UniformSchema> = (
   ctx: {
     $: ShaderContext<U>;
@@ -294,37 +231,7 @@ export function compileFragment<U extends UniformSchema = UniformSchema>(
     },
   };
 
-  fn({
-    $,
-    float,
-    vec2,
-    vec3,
-    vec4,
-    mat2,
-    texture,
-    sin,
-    cos,
-    abs,
-    fract,
-    sqrt,
-    floor,
-    mix,
-    smoothstep,
-    radians,
-    dot,
-    length,
-    add,
-    sub,
-    mul,
-    div,
-    neg,
-    step,
-    mod,
-    asin,
-    atan,
-    min,
-    max,
-  });
+  fn({ $, ...fragmentBuiltins });
 
   const fnDefs = collectFnDefs(statements, constants);
 
