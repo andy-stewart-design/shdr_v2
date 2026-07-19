@@ -1,10 +1,9 @@
-import { refProxy, toNode, glslTypeOf } from "../ast";
+import { NODE, refProxy, toNode, glslTypeOf } from "../ast";
 import { createUniformExprs, type UniformSchema } from "../uniforms";
 import { fragmentBuiltins, type Builtins } from "./builtins";
 import { createLocalContext } from "./local";
 import type { ProgramBuilder } from "../program";
 import type {
-  AstNode,
   BodyStatement,
   ConstStatement,
   Expr,
@@ -24,6 +23,10 @@ type FragmentContext<U extends UniformSchema> = {
   statements: BodyStatement[];
   constants: ConstStatement[];
 };
+
+function isExprProxy(value: unknown): value is ExprProxy<GlslType> {
+  return typeof value === "object" && value !== null && NODE in value;
+}
 
 export function createFragmentContext<U extends UniformSchema>(
   uniforms: U,
@@ -45,17 +48,30 @@ export function createFragmentContext<U extends UniformSchema>(
   function makeConst(value: number): ExprProxy<"float">;
   function makeConst<T extends GlslType>(value: ExprProxy<T>): ExprProxy<T>;
   function makeConst(nameOrValue: unknown, maybeValue?: unknown): unknown {
-    const hasName = typeof nameOrValue === "string";
-    const name = hasName ? (nameOrValue as string) : `_c${constCounter++}`;
-    const value = hasName ? maybeValue : nameOrValue;
-    const isNum = typeof value === "number";
-    const node: AstNode = isNum
-      ? { kind: "number", value: value as number }
-      : toNode(value as Expr<GlslType>);
-    const varType: GlslType = isNum
-      ? "float"
-      : glslTypeOf(value as Expr<GlslType>);
-    program.addConstant({ type: "const", name, varType, value: node });
+    const named = typeof nameOrValue === "string";
+    const value = named ? maybeValue : nameOrValue;
+    const name = named ? nameOrValue : `_c${constCounter++}`;
+
+    if (typeof value === "number") {
+      program.addConstant({
+        type: "const",
+        name,
+        varType: "float",
+        value: toNode(value),
+      });
+      return refProxy([name], "float");
+    }
+    if (!isExprProxy(value)) {
+      throw new Error("$.const(value) requires a shader expression or number.");
+    }
+
+    const varType = glslTypeOf(value);
+    program.addConstant({
+      type: "const",
+      name,
+      varType,
+      value: toNode(value),
+    });
     return refProxy([name], varType);
   }
 

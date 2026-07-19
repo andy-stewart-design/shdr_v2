@@ -21,7 +21,7 @@ describe("ProgramBuilder", () => {
     const program = new ProgramBuilder(
       {},
       [],
-      [{ type: "assign", target: "fragColor", value: node }],
+      [{ type: "let", name: "result", varType: "float", value: node }],
     ).build();
 
     expect(program.functions.map((definition) => definition.name)).toEqual([

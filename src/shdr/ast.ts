@@ -3,11 +3,27 @@ import type { AstNode, Expr, ExprProxy, GlslType } from "./types.ts";
 export const NODE = Symbol("node");
 export const GLSL_TYPE = Symbol("glslType");
 
+// AST nodes are plain target-independent data. Keep authoring-only type
+// metadata out-of-band so emitted programs remain serializable.
+const nodeTypes = new WeakMap<AstNode, GlslType>();
+
+function rememberNodeType<T extends GlslType>(node: AstNode, type: T): AstNode {
+  nodeTypes.set(node, type);
+  return node;
+}
+
+export function glslTypeOfNode(node: AstNode): GlslType {
+  const type = nodeTypes.get(node);
+  if (!type) throw new Error(`Missing GLSL type metadata for ${node.kind} node.`);
+  return type;
+}
+
 // ---------------------------------------------------------------------------
 // Core helpers
 // ---------------------------------------------------------------------------
 
 export function makeExpr<T extends GlslType>(node: AstNode, type: T) {
+  rememberNodeType(node, type);
   return { [NODE]: node, [GLSL_TYPE]: type } satisfies Expr<T>;
 }
 
@@ -16,7 +32,8 @@ export function glslTypeOf<T extends GlslType>(value: Expr<T>): T {
 }
 
 export function toNode(value: Expr<GlslType> | number): AstNode {
-  if (typeof value === "number") return { kind: "number", value };
+  if (typeof value === "number")
+    return rememberNodeType({ kind: "number", value }, "float");
   return value[NODE];
 }
 

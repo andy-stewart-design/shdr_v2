@@ -1,4 +1,5 @@
 import { getFunctionDefinition } from "./fn";
+import { validateProgram } from "./semantics";
 import type { AstNode, BodyStatement, ConstStatement, FnDef } from "./types";
 import type { UniformSchema } from "./uniforms";
 
@@ -45,12 +46,14 @@ export class ProgramBuilder<U extends UniformSchema = UniformSchema> {
     for (const constant of this.constants) this.visitNode(constant.value);
     for (const statement of this.statements) this.visitNode(statement.value);
 
-    return {
+    const program = {
       uniforms: this.uniforms,
       constants: this.constants,
       statements: this.statements,
       functions: this.functions,
     };
+    validateProgram(program);
+    return program;
   }
 
   private visitNode(node: AstNode): void {
