@@ -17,7 +17,11 @@ export type BinOpNode = {
 };
 export type UnaryNode = { kind: "unary"; op: "-"; operand: AstNode };
 
-export type FnCallNode = { kind: "fncall"; def: FnDef; args: AstNode[] };
+/**
+ * Calls identify their function by name. Function definitions live in the
+ * program being compiled rather than being embedded recursively in every call.
+ */
+export type FnCallNode = { kind: "fncall"; name: string; args: AstNode[] };
 
 export type AstNode =
   | NumberNode

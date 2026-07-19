@@ -17,6 +17,19 @@ type FnMetadata = {
   readonly glsl: string;
 };
 
+// Function definitions are authoring metadata. Calls carry only a function
+// name; each compilation session resolves and owns the definitions it uses.
+const definitionsByName = new Map<string, FnDef>();
+
+export function getFunctionDefinition(name: string): FnDef | undefined {
+  return definitionsByName.get(name);
+}
+
+function registerFunctionDefinition(def: FnDef): FnDef {
+  definitionsByName.set(def.name, def);
+  return def;
+}
+
 function attachFnMetadata<F extends object>(fn: F, def: FnDef): F & FnMetadata {
   Object.defineProperties(fn, {
     _def: { value: def, writable: false },
@@ -166,13 +179,14 @@ export function fn<R extends GlslType>(...args: FnImplementationArgs<R>) {
 
     const returnValue = body(paramRefs, fnContext.ctx);
 
-    const def: FnDef = {
+    const def = {
       name,
       params: paramSchema,
       returnType,
       body: fnContext.statements,
       returnExpr: toNode(returnValue),
-    };
+    } satisfies FnDef;
+    registerFunctionDefinition(def);
 
     const fn = (...args: (ExprProxy<GlslType> | number)[]) => {
       // Guard: if the first arg is a plain object (not an ExprProxy, not a number),
@@ -189,7 +203,7 @@ export function fn<R extends GlslType>(...args: FnImplementationArgs<R>) {
         );
       }
       const argNodes: AstNode[] = args.map((a) => toNode(a));
-      return makeProxy({ kind: "fncall", def, args: argNodes }, returnType);
+      return makeProxy({ kind: "fncall", name, args: argNodes }, returnType);
     };
 
     return attachFnMetadata(fn, def);
@@ -209,6 +223,7 @@ export function fn<R extends GlslType>(...args: FnImplementationArgs<R>) {
       body: fnContext.statements,
       returnExpr: toNode(returnValue),
     };
+    registerFunctionDefinition(def);
 
     const fn = (args: Record<string, ExprProxy<GlslType> | number>) => {
       // Guard: if args is an ExprProxy (has NODE symbol), the caller used
@@ -227,7 +242,7 @@ export function fn<R extends GlslType>(...args: FnImplementationArgs<R>) {
       const argNodes: AstNode[] = Object.keys(params).map((k) =>
         toNode(args[k]),
       );
-      return makeProxy({ kind: "fncall", def, args: argNodes }, returnType);
+      return makeProxy({ kind: "fncall", name, args: argNodes }, returnType);
     };
 
     return attachFnMetadata(fn, def);

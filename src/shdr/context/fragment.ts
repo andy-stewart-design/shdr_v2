@@ -2,6 +2,7 @@ import { refProxy, toNode, glslTypeOf } from "../ast";
 import { createUniformExprs, type UniformSchema } from "../uniforms";
 import { fragmentBuiltins, type Builtins } from "./builtins";
 import { createLocalContext } from "./local";
+import type { ProgramBuilder } from "../program";
 import type {
   AstNode,
   BodyStatement,
@@ -26,12 +27,14 @@ type FragmentContext<U extends UniformSchema> = {
 
 export function createFragmentContext<U extends UniformSchema>(
   uniforms: U,
+  program: ProgramBuilder<U>,
 ): FragmentContext<U> {
-  const constants: ConstStatement[] = [];
-  const locals = createLocalContext<Extract<BodyStatement, { type: "let" }>>({
+  const locals = createLocalContext({
     prefix: "_v",
+    addStatement: (statement) => program.addStatement(statement),
   });
-  const statements: BodyStatement[] = locals.statements;
+  const statements: BodyStatement[] = program.statements;
+  const constants: ConstStatement[] = program.constants;
 
   let constCounter = 0;
   function makeConst(name: string, value: number): ExprProxy<"float">;
@@ -52,7 +55,7 @@ export function createFragmentContext<U extends UniformSchema>(
     const varType: GlslType = isNum
       ? "float"
       : glslTypeOf(value as Expr<GlslType>);
-    constants.push({ type: "const", name, varType, value: node });
+    program.addConstant({ type: "const", name, varType, value: node });
     return refProxy([name], varType);
   }
 
@@ -60,7 +63,7 @@ export function createFragmentContext<U extends UniformSchema>(
     ...locals.context,
     const: makeConst,
     output(value: Expr<"vec4">) {
-      statements.push({
+      program.addStatement({
         type: "assign",
         target: "fragColor",
         value: toNode(value),

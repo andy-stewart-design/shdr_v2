@@ -15,7 +15,7 @@ export function createFnContext(): {
   ctx: FnContext;
   statements: FnBodyStatement[];
 } {
-  const locals = createLocalContext<FnBodyStatement>({ prefix: "_l" });
+  const locals = createLocalContext({ prefix: "_l" });
 
   return {
     ctx: { $: locals.context, ...fnBuiltins },

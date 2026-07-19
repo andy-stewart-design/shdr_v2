@@ -43,7 +43,7 @@ export function compileExpr(node: AstNode): string {
     case "unary":
       return `(-${compileExpr(node.operand)})`;
     case "fncall":
-      return `${node.def.name}(${node.args.map(compileExpr).join(", ")})`;
+      return `${node.name}(${node.args.map(compileExpr).join(", ")})`;
   }
 }
 

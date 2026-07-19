@@ -31,7 +31,10 @@ describe("transformShdrSource baseline", () => {
     "../fragments/plasma/fragment.shdr.ts",
     "../fragments/pixelation/fragment.shdr.ts",
   ])("snapshots the transformed %s source", async (fragmentPath) => {
-    const source = await readFile(new URL(fragmentPath, import.meta.url), "utf8");
+    const source = await readFile(
+      new URL(fragmentPath, import.meta.url),
+      "utf8",
+    );
     const result = transformShdrSource(source, fragmentPath);
 
     expect(result?.code).toMatchSnapshot();

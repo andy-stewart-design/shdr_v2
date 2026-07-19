@@ -15,13 +15,15 @@ type LocalStatement = {
   value: AstNode;
 };
 
-export function createLocalContext<TStatement extends LocalStatement>(options: {
+export function createLocalContext(options: {
   prefix: string;
+  statements?: LocalStatement[];
+  addStatement?: (statement: LocalStatement) => void;
 }): {
   context: LocalContext;
-  statements: TStatement[];
+  statements: LocalStatement[];
 } {
-  const statements: TStatement[] = [];
+  const statements = options.statements ?? [];
   let counter = 0;
 
   const context: LocalContext = {
@@ -36,12 +38,14 @@ export function createLocalContext<TStatement extends LocalStatement>(options: {
       const value = typeof nameOrValue === "string" ? maybeValue! : nameOrValue;
       const varType = glslTypeOf(value);
 
-      statements.push({
-        type: "let",
+      const statement = {
+        type: "let" as const,
         name,
         varType,
         value: toNode(value),
-      } as TStatement);
+      };
+      if (options.addStatement) options.addStatement(statement);
+      else statements.push(statement);
 
       return refProxy([name], varType);
     },
