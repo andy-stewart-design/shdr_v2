@@ -1,0 +1,124 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`example fragment GLSL baselines > compiles circles with reusable function dependencies 1`] = `
+"#version 300 es
+precision highp float;
+uniform float u_time;
+uniform vec2 u_resolution;
+uniform vec2 u_mouse;
+out vec4 fragColor;
+
+const float CENTRAL_RAD = float(0.1);
+const float SATELLITE_RAD = float(0.0375);
+const float ROTATION_SPEED = 0.15;
+const float SPACING = 2.5;
+const vec2 C = vec2(0.0);
+
+float circle(vec2 _p0, vec2 _p1, float _p2, float _p3, float _p4) {
+  float dist = (length((_p0 - _p1)) - _p2);
+  float edgeDist = mix(abs(dist), dist, _p3);
+  return (1.0 - smoothstep((-2.0 / _p4), (3.0 / _p4), edgeDist));
+}
+vec3 hue(vec3 _p0) {
+  vec3 shifted = (vec3(0.0, 4.0, 2.0) + (_p0.x * 6.0));
+  vec3 wrapped = mod(shifted, 6.0);
+  vec3 ss = smoothstep(2.0, 1.0, abs((wrapped - 3.0)));
+  vec3 inner = (ss * _p0.y);
+  vec3 factor = ((-inner) + 1.0);
+  return (factor * _p0.z);
+}
+vec3 circles(vec2 xy, vec2 C, float R, float r, float ph, float resY) {
+  float t = (asin((r / (R + r))) * 2.5);
+  float divv = (abs((6.28318 / t)) + 0.01);
+  float n = floor(divv);
+  float pad = ((fract(divv) * t) / n);
+  float rt = (((t / -2.0) - (pad / 2.0)) + ph);
+  mat2 rm = mat2(cos(rt), (-sin(rt)), sin(rt), cos(rt));
+  vec2 zw = (rm * (xy - C));
+  float i = floor((atan(zw.y, zw.x) / (t + pad)));
+  float angle = ((i * (t + pad)) + ph);
+  vec2 cPos = ((vec2(cos(angle), sin(angle)) * (R + r)) + C);
+  vec3 hsl = vec3((i / n), 1.0, 0.75);
+  return (vec3(circle(xy, cPos, r, 1.0, resY)) * hue(hsl));
+}
+
+void main() {
+  vec2 shdr_uv = gl_FragCoord.xy / u_resolution.xy;
+  vec2 xy = (((gl_FragCoord.xy * 2.0) - u_resolution) / u_resolution.y);
+  float distFromCenter = length((xy - C));
+  float i = floor(((distFromCenter - CENTRAL_RAD) / (SATELLITE_RAD * SPACING)));
+  float phaseOffset = (-((u_time * ROTATION_SPEED) * ((i * 0.1) + 1.0)));
+  vec3 col = (circles(xy, C, (CENTRAL_RAD + ((SATELLITE_RAD * i) * SPACING)), SATELLITE_RAD, phaseOffset, u_resolution.y) * step(0.0, i));
+  fragColor = vec4((col * 0.9), 1.0);
+}"
+`;
+
+exports[`example fragment GLSL baselines > compiles pixelation with texture uniform sugar 1`] = `
+"#version 300 es
+precision highp float;
+uniform float u_time;
+uniform vec2 u_resolution;
+uniform vec2 u_mouse;
+uniform sampler2D u_texture;
+uniform vec2 u_texture_resolution;
+uniform float u_pixelation;
+out vec4 fragColor;
+
+void main() {
+  vec2 shdr_uv = gl_FragCoord.xy / u_resolution.xy;
+  float textureAR = (u_texture_resolution.x / u_texture_resolution.y);
+  float canvasAR = (u_resolution.x / u_resolution.y);
+  float useXScale = step(canvasAR, textureAR);
+  vec2 uvScale = mix(vec2(1.0, (textureAR / canvasAR)), vec2((canvasAR / textureAR), 1.0), useXScale);
+  vec2 adjustedUV = (((shdr_uv - 0.5) * uvScale) + 0.5);
+  float numPixelsY = floor((u_resolution.y / u_pixelation));
+  float pixelSize = (1.0 / numPixelsY);
+  float dx = (pixelSize / textureAR);
+  float dy = pixelSize;
+  float x = (dx * (floor((adjustedUV.x / dx)) + 0.5));
+  float y = (dy * (floor((adjustedUV.y / dy)) + 0.5));
+  fragColor = texture(u_texture, vec2(x, y));
+}"
+`;
+
+exports[`example fragment GLSL baselines > compiles plasma with a uniform contract 1`] = `
+"#version 300 es
+precision highp float;
+uniform float u_time;
+uniform vec2 u_resolution;
+uniform vec2 u_mouse;
+uniform float u_scale;
+uniform float u_speed;
+uniform float u_complexity;
+uniform float u_grain;
+uniform vec3 u_colorA;
+uniform vec3 u_colorB;
+out vec4 fragColor;
+
+float filmGrain(vec2 _p0) {
+  vec3 p3 = fract((vec3(_p0.x, _p0.y, _p0.x) * 0.1031));
+  float d = dot(p3, (vec3(p3.y, p3.z, p3.x) + 33.33));
+  vec3 q = (p3 + d);
+  return ((fract(((q.x + q.y) * q.z)) * 2.0) - 1.0);
+}
+
+void main() {
+  vec2 shdr_uv = gl_FragCoord.xy / u_resolution.xy;
+  vec2 uv = (gl_FragCoord.xy / u_resolution);
+  float t = (u_time * u_speed);
+  vec2 c0 = ((uv * u_scale) - (u_scale / 2.0));
+  float waveX = sin((c0.x + t));
+  float waveY = sin(((c0.y + t) / 2.0));
+  float waveDiagonal = sin((((c0.x + c0.y) + t) / 2.0));
+  vec2 drift = (vec2(sin((t / 3.0)), cos((t / 2.0))) * (u_scale / 2.0));
+  vec2 c = (c0 + drift);
+  float radial = sqrt((((c.x * c.x) + (c.y * c.y)) + 1.0));
+  float waveRadial = sin((radial + t));
+  float plasma = ((((waveX + waveY) + waveDiagonal) + waveRadial) / 2.0);
+  float colorMix = ((sin(((plasma * 3.14159) * u_complexity)) * 0.5) + 0.5);
+  vec3 color = mix(u_colorA, u_colorB, colorMix);
+  float gr = filmGrain(gl_FragCoord.xy);
+  vec3 finalColor = (color + (gr * u_grain));
+  fragColor = vec4(finalColor, 1.0);
+}"
+`;

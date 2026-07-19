@@ -1,0 +1,173 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`transformShdrSource baseline > preserves the implicit naming conventions 1`] = `
+"import { fn, Float, FragmentFn } from "@shdr/index";
+
+const helper = fn("helper", [Float], Float, ([value], {$,  sin }) => {
+  const wave = $.let("wave", sin(value));
+  const SCALE = 2.0;
+  return wave.mul(SCALE);
+});
+
+export const fragment: FragmentFn = ({ vec3, vec4 }) => {
+  const uv = $.let("uv", $.uv.sub(0.5));
+  const COLOR = $.const("COLOR", vec3(0.2, 0.4, 1.0));
+  const _inline = uv.mul(2.0);
+  const named = $.let("named", vec3(_inline.x, COLOR.y, 1.0));
+  $.output(vec4(named, 1.0));
+};
+"
+`;
+
+exports[`transformShdrSource baseline > snapshots the transformed ../fragments/circles/fragment.shdr.ts source 1`] = `
+"import { compileFragment, type FragmentFn } from "@shdr/index";
+import { SPACING_FACTOR } from "./constants";
+import { circles } from "./utils.shdr";
+
+const _fragment: FragmentFn = ({
+  $,
+  vec2,
+  vec4,
+  step,
+  length,
+  floor,
+  float,
+}) => {
+  const CENTRAL_RAD = $.const("CENTRAL_RAD", float(0.1));
+  const SATELLITE_RAD = $.const("SATELLITE_RAD", float(0.0375));
+  const ROTATION_SPEED = $.const("ROTATION_SPEED", 0.15);
+  const SPACING = $.const("SPACING", SPACING_FACTOR * 2.0);
+
+  const xy = $.let("xy", $.coord.mul(2.0).sub($.resolution).div($.resolution.y));
+  const C = $.const("C", vec2(0.0));
+  const distFromCenter = $.let("distFromCenter", length(xy.sub(C)));
+  const i = $.let("i", floor(
+    distFromCenter.sub(CENTRAL_RAD).div(SATELLITE_RAD.mul(SPACING)),
+  ));
+  const phaseOffset = $.let("phaseOffset", $.time.mul(ROTATION_SPEED).mul(i.mul(0.1).add(1.0)).neg());
+
+  const col = $.let("col", circles({
+    xy,
+    C,
+    R: CENTRAL_RAD.add(SATELLITE_RAD.mul(i).mul(SPACING)),
+    r: SATELLITE_RAD,
+    ph: phaseOffset,
+    resY: $.resolution.y,
+  }).mul(step(0.0, i)));
+
+  $.output(vec4(col.mul(0.9), 1.0));
+};
+
+export const fragment = compileFragment(_fragment);
+console.log(fragment);
+"
+`;
+
+exports[`transformShdrSource baseline > snapshots the transformed ../fragments/pixelation/fragment.shdr.ts source 1`] = `
+"import { compileFragment, defineUniforms, type FragmentFn } from "@shdr/index";
+
+const DEFAULT_PIXELATION_CSS_PX = 40;
+
+export const uniforms = defineUniforms((u) => ({
+  texture: u.texture2D("https://shdr.andystew.art/abstract.jpg", {
+    label: "Texture",
+    accept: ["png", "jpeg", "webp", "gif"],
+  }),
+  pixelation: u.float(DEFAULT_PIXELATION_CSS_PX * devicePixelRatio, {
+    label: "Pixelation",
+    min: 1,
+    max: 160,
+    step: 1,
+  }),
+}));
+
+const _fragment: FragmentFn<typeof uniforms> = ({
+  $,
+  vec2,
+  floor,
+  step,
+  mix,
+  div,
+}) => {
+  const textureAR = $.let("textureAR", $.u.texture.resolution.x.div($.u.texture.resolution.y));
+  const canvasAR = $.let("canvasAR", $.resolution.x.div($.resolution.y));
+
+  // Branchless object-fit: cover UV adjustment.
+  const useXScale = $.let("useXScale", step(canvasAR, textureAR));
+  const uvScale = $.let("uvScale", mix(
+    vec2(1.0, textureAR.div(canvasAR)),
+    vec2(canvasAR.div(textureAR), 1.0),
+    useXScale,
+  ));
+  const adjustedUV = $.let("adjustedUV", $.uv.sub(0.5).mul(uvScale).add(0.5));
+
+  // Calculate square pixel grid in texture UV space.
+  const numPixelsY = $.let("numPixelsY", floor($.resolution.y.div($.u.pixelation)));
+  const pixelSize = $.let("pixelSize", div(1.0, numPixelsY));
+  const dx = $.let("dx", pixelSize.div(textureAR));
+  const dy = $.let("dy", pixelSize);
+
+  const x = $.let("x", dx.mul(floor(adjustedUV.x.div(dx)).add(0.5)));
+  const y = $.let("y", dy.mul(floor(adjustedUV.y.div(dy)).add(0.5)));
+
+  $.output($.u.texture.sample(x, y));
+};
+
+export const fragment = compileFragment(_fragment, { uniforms });
+console.log(fragment);
+"
+`;
+
+exports[`transformShdrSource baseline > snapshots the transformed ../fragments/plasma/fragment.shdr.ts source 1`] = `
+"import { compileFragment, defineUniforms, type FragmentFn } from "@shdr/index";
+import { filmGrain } from "@/fragments/utils/grain.shdr";
+
+export const uniforms = defineUniforms((u) => ({
+  scale: u.float(6.0, { min: 1, max: 20, step: 0.1 }),
+  speed: u.float(0.8, { min: 0, max: 3, step: 0.05 }),
+  complexity: u.float(2.0, { min: 0.5, max: 6, step: 0.1 }),
+  grain: u.float(0.12, { min: 0, max: 0.5, step: 0.01 }),
+  colorA: u.vec3([0.1, 0.3, 0.8]),
+  colorB: u.vec3([0.9, 0.2, 0.5]),
+}));
+
+const _fragment: FragmentFn<typeof uniforms> = ({
+  $,
+  vec2,
+  vec4,
+  sin,
+  cos,
+  sqrt,
+  mix,
+}) => {
+  const uv = $.let("uv", $.coord.div($.resolution));
+  const t = $.let("t", $.time.mul($.u.speed));
+
+  // Classic plasma field: layered sine waves over centered UV space.
+  const c0 = $.let("c0", uv.mul($.u.scale).sub($.u.scale.div(2.0)));
+  const waveX = $.let("waveX", sin(c0.x.add(t)));
+  const waveY = $.let("waveY", sin(c0.y.add(t).div(2.0)));
+  const waveDiagonal = $.let("waveDiagonal", sin(c0.x.add(c0.y).add(t).div(2.0)));
+
+  const drift = $.let("drift", vec2(sin(t.div(3.0)), cos(t.div(2.0))).mul($.u.scale.div(2.0)));
+  const c = $.let("c", c0.add(drift));
+  const radial = $.let("radial", sqrt(c.x.mul(c.x).add(c.y.mul(c.y)).add(1.0)));
+  const waveRadial = $.let("waveRadial", sin(radial.add(t)));
+
+  const plasma = $.let("plasma", waveX.add(waveY).add(waveDiagonal).add(waveRadial).div(2.0));
+  const colorMix = $.let("colorMix", sin(plasma.mul(3.14159).mul($.u.complexity))
+    .mul(0.5)
+    .add(0.5));
+  const color = $.let("color", mix($.u.colorA, $.u.colorB, colorMix));
+
+  // Static screen-space film grain, applied after the plasma color.
+  const gr = $.let("gr", filmGrain($.coord));
+  const finalColor = $.let("finalColor", color.add(gr.mul($.u.grain)));
+
+  $.output(vec4(finalColor, 1.0));
+};
+
+export const fragment = compileFragment(_fragment, { uniforms });
+console.log(fragment);
+"
+`;
