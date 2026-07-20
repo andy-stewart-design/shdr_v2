@@ -1,5 +1,6 @@
 // Public API
-export { compileFragment, compileFn } from "./compile";
+export { compileFragment, compileFragmentArtifact, compileFn } from "./compile";
+export type { CompiledShaderArtifact } from "./artifact";
 export { createShader } from "./runtime";
 export type { ShaderOptions, ShaderInstance } from "./runtime";
 export { defineUniforms } from "./uniforms";
