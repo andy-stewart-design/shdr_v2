@@ -5,7 +5,9 @@ export type { ShaderOptions, ShaderInstance } from "./runtime";
 export { defineUniforms } from "./uniforms";
 export type {
   TextureSource,
+  TextureUrl,
   TextureFileExtension,
+  RuntimeScale,
   BaseUniformSpec,
   FloatUniformSpec,
   Vec2UniformSpec,
@@ -14,12 +16,14 @@ export type {
   Texture2DUniformSpec,
   UniformSpec,
   UniformSchema,
+  UniformContract,
   FloatUniformOptions,
   VecUniformOptions,
   TextureUniformOptions,
   UniformSpecHelpers,
   RuntimeUniform,
   RuntimeUniforms,
+  RuntimeEnvironment,
 } from "./uniforms";
 export type { FragmentFn } from "./context/fragment";
 export type { Builtins } from "./context/builtins";

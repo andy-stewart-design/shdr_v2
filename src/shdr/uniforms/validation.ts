@@ -37,5 +37,19 @@ export function validateUniformSchema(
         `Custom uniform "${key}" has invalid type "${String(spec.type)}". Expected one of: ${[...UNIFORM_TYPES].join(", ")}.`,
       );
     }
+    if (spec.type === "texture2D" && typeof spec.value !== "string") {
+      throw new Error(
+        `Texture uniform "${key}" must use a serializable URL string default. Set File or Blob values on the client runtime handle.`,
+      );
+    }
+    if (
+      spec.type === "float" &&
+      spec.scaleWith !== undefined &&
+      spec.scaleWith !== "devicePixelRatio"
+    ) {
+      throw new Error(
+        `Float uniform "${key}" has unsupported runtime scale "${String(spec.scaleWith)}".`,
+      );
+    }
   }
 }

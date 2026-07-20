@@ -73,11 +73,12 @@ export const uniforms = defineUniforms((u) => ({
     label: "Texture",
     accept: ["png", "jpeg", "webp", "gif"],
   }),
-  pixelation: u.float(DEFAULT_PIXELATION_CSS_PX * devicePixelRatio, {
+  pixelation: u.float(DEFAULT_PIXELATION_CSS_PX, {
     label: "Pixelation",
     min: 1,
     max: 160,
     step: 1,
+    scaleWith: "devicePixelRatio",
   }),
 }));
 

@@ -109,7 +109,9 @@ export function createShader<U extends UniformSchema = UniformSchema>(
 
   let nextTextureUnit = 0;
   const inputUniforms = options.uniforms ?? ({} as U);
-  const liveUniforms = createRuntimeUniforms(inputUniforms);
+  const liveUniforms = createRuntimeUniforms(inputUniforms, {
+    devicePixelRatio,
+  });
   const customUniforms = Object.entries(liveUniforms).map(([name, uniform]) => {
     const uniformType = uniform.schema.type;
     return createWebGLUniformBinding(

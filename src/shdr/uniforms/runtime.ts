@@ -1,6 +1,18 @@
-import type { TextureSource, UniformSchema, UniformSpec } from "./schema";
+import type {
+  Texture2DUniformSpec,
+  TextureSource,
+  UniformSchema,
+  UniformSpec,
+} from "./schema";
 
-export type UniformSpecValue<S extends UniformSpec> = S["value"];
+export type UniformSpecValue<S extends UniformSpec> =
+  S extends Texture2DUniformSpec ? TextureSource : S["value"];
+
+type RuntimeUniformValue = UniformSpecValue<UniformSpec>;
+
+export type RuntimeEnvironment = {
+  devicePixelRatio?: number;
+};
 
 export type RuntimeUniform<
   TValue = UniformSpec["value"],
@@ -41,20 +53,36 @@ function copyValue<T extends number | TextureSource | readonly number[]>(
   return (Array.isArray(value) ? [...value] : value) as T;
 }
 
-function makeRuntimeUniformHandle<S extends UniformSpec>(
-  schema: S,
-): InternalRuntimeUniform<UniformSpecValue<S>, S> {
-  let value = copyValue(schema.value) as UniformSpecValue<S>;
+function resolveFloatInitialValue(
+  schema: Extract<UniformSpec, { type: "float" }>,
+  environment: RuntimeEnvironment,
+) {
+  return schema.scaleWith === "devicePixelRatio"
+    ? schema.value * (environment.devicePixelRatio ?? 1)
+    : schema.value;
+}
+
+function initialValue(schema: UniformSpec, environment: RuntimeEnvironment) {
+  return schema.type === "float"
+    ? resolveFloatInitialValue(schema, environment)
+    : schema.value;
+}
+
+function makeRuntimeUniformHandle(
+  schema: UniformSpec,
+  environment: RuntimeEnvironment,
+): InternalRuntimeUniform<RuntimeUniformValue, UniformSpec> {
+  let value: RuntimeUniformValue = copyValue(initialValue(schema, environment));
   let dirty = true;
 
   return {
     schema,
     get() {
-      return copyValue(value) as UniformSpecValue<S>;
+      return copyValue(value);
     },
     set(nextValue) {
       if (schema.type !== "texture2D" && equalValue(value, nextValue)) return;
-      value = copyValue(nextValue) as UniformSpecValue<S>;
+      value = copyValue(nextValue);
       dirty = true;
     },
     consumeDirty() {
@@ -67,11 +95,12 @@ function makeRuntimeUniformHandle<S extends UniformSpec>(
 
 export function createRuntimeUniforms<U extends UniformSchema>(
   uniforms: U,
+  environment: RuntimeEnvironment = {},
 ): InternalRuntimeUniforms<U> {
   return Object.fromEntries(
     Object.entries(uniforms).map(([key, schema]) => [
       key,
-      makeRuntimeUniformHandle(schema),
+      makeRuntimeUniformHandle(schema, environment),
     ]),
   ) as InternalRuntimeUniforms<U>;
 }
