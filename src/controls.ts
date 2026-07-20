@@ -1,11 +1,11 @@
 import type {
   FloatUniformSpec,
   RuntimeUniform,
-  ShaderInstance,
   Texture2DUniformSpec,
   TextureFileExtension,
   UniformSchema,
 } from "./shdr/index.ts";
+import type { ShaderInstance } from "./shdr/webgl.ts";
 
 type GuiLike = {
   add(

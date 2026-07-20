@@ -3,7 +3,7 @@ import {
   validateSerializableArtifact,
   type CompiledShaderArtifact,
 } from "./artifact.ts";
-import { compileFragmentArtifact } from "./compile.ts";
+import { compileShader } from "./compile.ts";
 import { defineUniforms } from "./uniforms";
 
 describe("compiled shader artifacts", () => {
@@ -12,7 +12,7 @@ describe("compiled shader artifacts", () => {
       gain: u.float(0.5, { min: 0, max: 1 }),
       image: u.texture2D("https://example.test/image.png"),
     }));
-    const artifact = compileFragmentArtifact(
+    const artifact = compileShader(
       ({ $, vec4 }) => {
         $.output(vec4($.u.gain, 0, 0, 1));
       },

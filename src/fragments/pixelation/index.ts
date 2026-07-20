@@ -1,9 +1,9 @@
 import { addUniformControls } from "@/controls";
-import { createShader } from "@shdr/index";
-import { fragment, uniforms } from "./fragment.shdr";
+import { createShader } from "@shdr/webgl";
+import { shader as compiledShader } from "./fragment.shdr";
 import type GUI from "lil-gui";
 
 export function setup(canvas: HTMLCanvasElement, gui: GUI) {
-  const shader = createShader({ canvas, fragment, uniforms });
+  const shader = createShader({ canvas, shader: compiledShader });
   addUniformControls(gui, shader);
 }

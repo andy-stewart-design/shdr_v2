@@ -1,4 +1,4 @@
-import { compileFragment, type FragmentFn } from "@shdr/index";
+import { compileShader, type FragmentFn } from "@shdr/index";
 import { SPACING_FACTOR } from "./constants";
 import { circles } from "./utils.shdr";
 
@@ -36,5 +36,6 @@ const _fragment: FragmentFn = ({
   $.output(vec4(col.mul(0.9), 1.0));
 };
 
-export const fragment = compileFragment(_fragment);
+export const shader = compileShader(_fragment);
+export const fragment = shader.fragment;
 console.log(fragment);

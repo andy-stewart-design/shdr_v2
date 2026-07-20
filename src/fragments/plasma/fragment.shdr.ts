@@ -1,4 +1,4 @@
-import { compileFragment, defineUniforms, type FragmentFn } from "@shdr/index";
+import { compileShader, defineUniforms, type FragmentFn } from "@shdr/index";
 import { filmGrain } from "@/fragments/utils/grain.shdr";
 
 export const uniforms = defineUniforms((u) => ({
@@ -46,5 +46,6 @@ const _fragment: FragmentFn<typeof uniforms> = ({
   $.output(vec4(finalColor, 1.0));
 };
 
-export const fragment = compileFragment(_fragment, { uniforms });
+export const shader = compileShader(_fragment, { uniforms });
+export const fragment = shader.fragment;
 console.log(fragment);

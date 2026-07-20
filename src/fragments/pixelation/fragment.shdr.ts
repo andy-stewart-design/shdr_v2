@@ -1,4 +1,4 @@
-import { compileFragment, defineUniforms, type FragmentFn } from "@shdr/index";
+import { compileShader, defineUniforms, type FragmentFn } from "@shdr/index";
 
 const DEFAULT_PIXELATION_CSS_PX = 40;
 
@@ -48,5 +48,6 @@ const _fragment: FragmentFn<typeof uniforms> = ({
   $.output($.u.texture.sample(x, y));
 };
 
-export const fragment = compileFragment(_fragment, { uniforms });
+export const shader = compileShader(_fragment, { uniforms });
+export const fragment = shader.fragment;
 console.log(fragment);

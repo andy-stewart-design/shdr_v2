@@ -19,7 +19,7 @@ export function compileFn(shaderFn: { readonly _def: FnDef }) {
 }
 
 /** Compile a fragment authoring callback into a serializable WebGL artifact. */
-export function compileFragmentArtifact<
+export function compileShader<
   U extends UniformSchema = UniformSchema,
 >(fn: FragmentFn<U>, options: { uniforms?: U } = {}) {
   validateUniformSchema(options.uniforms);
@@ -45,5 +45,5 @@ export function compileFragment<U extends UniformSchema = UniformSchema>(
   fn: FragmentFn<U>,
   options: { uniforms?: U } = {},
 ) {
-  return compileFragmentArtifact(fn, options).fragment;
+  return compileShader(fn, options).fragment;
 }

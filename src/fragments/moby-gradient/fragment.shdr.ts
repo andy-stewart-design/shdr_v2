@@ -2,7 +2,7 @@ import { filmGrain } from "@/fragments/utils/grain.shdr";
 import { noise } from "@/fragments/utils/noise.shdr";
 import { vignette } from "@/fragments/utils/vignette.shdr";
 import { rot } from "@/fragments/utils/rotate.shdr";
-import { compileFragment, type FragmentFn } from "@shdr/index";
+import { compileShader, type FragmentFn } from "@shdr/index";
 
 const _fragment: FragmentFn = ({
   $,
@@ -78,5 +78,6 @@ const _fragment: FragmentFn = ({
   $.output(vec4(finalColor, 1.0));
 };
 
-export const fragment = compileFragment(_fragment);
+export const shader = compileShader(_fragment);
+export const fragment = shader.fragment;
 console.log(fragment);

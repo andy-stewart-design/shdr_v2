@@ -1,4 +1,4 @@
-import { compileFragment, fn, Float, Vec3, type FragmentFn } from "@shdr/index";
+import { compileShader, fn, Float, Vec3, type FragmentFn } from "@shdr/index";
 import { filmGrain } from "@/fragments/utils/grain.shdr";
 
 // Inigo Quilez cosine palette — https://iquilezles.org/articles/palettes/
@@ -40,5 +40,6 @@ const _fragment: FragmentFn = ({ $, vec2, vec3, vec4, sin, mix }) => {
   $.output(vec4(finalColor, 1.0));
 };
 
-export const fragment = compileFragment(_fragment);
+export const shader = compileShader(_fragment);
+export const fragment = shader.fragment;
 console.log(fragment);

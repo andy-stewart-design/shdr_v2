@@ -1,4 +1,4 @@
-import { compileFragment, defineUniforms, type FragmentFn } from "@shdr/index";
+import { compileShader, defineUniforms, type FragmentFn } from "@shdr/index";
 
 export const uniforms = defineUniforms((u) => ({
   dpi: u.float(12, { min: 2, max: 40, step: 1 }),
@@ -70,5 +70,6 @@ const _fragment: FragmentFn<typeof uniforms> = ({
   $.output(vec4(color, 1.0));
 };
 
-export const fragment = compileFragment(_fragment, { uniforms });
+export const shader = compileShader(_fragment, { uniforms });
+export const fragment = shader.fragment;
 console.log(fragment);

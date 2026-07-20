@@ -113,7 +113,15 @@ afterEach(() => {
 describe("createShader baseline", () => {
   it("renders scheduled frames and releases lifecycle resources on destroy", () => {
     const fixture = makeRuntimeFixture();
-    const shader = createShader({ canvas: fixture.canvas, fragment: FRAGMENT });
+    const shader = createShader({
+      canvas: fixture.canvas,
+      shader: {
+        target: "glsl-es-300",
+        fragment: FRAGMENT,
+        uniforms: {},
+        metadata: {},
+      },
+    });
 
     fixture.runFrame();
     expect(fixture.calls.drawArrays).toBe(1);
