@@ -21,13 +21,12 @@ describe("compiler semantic validation", () => {
   it("rejects invalid builtin operand types", () => {
     expect(() =>
       compileFragment(({ $, vec4 }) => {
-        const invalid = texture(
-          $.time as unknown as Expr<"sampler2D">,
-          $.uv,
-        );
+        const invalid = texture($.time as unknown as Expr<"sampler2D">, $.uv);
         $.output(vec4(invalid.rgb, 1));
       }),
-    ).toThrow("Invalid texture(...) call: expects sampler2D and vec2 arguments.");
+    ).toThrow(
+      "Invalid texture(...) call: expects sampler2D and vec2 arguments.",
+    );
   });
 
   it("rejects duplicate local symbols", () => {

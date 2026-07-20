@@ -14,7 +14,8 @@ function rememberNodeType<T extends GlslType>(node: AstNode, type: T): AstNode {
 
 export function glslTypeOfNode(node: AstNode): GlslType {
   const type = nodeTypes.get(node);
-  if (!type) throw new Error(`Missing GLSL type metadata for ${node.kind} node.`);
+  if (!type)
+    throw new Error(`Missing GLSL type metadata for ${node.kind} node.`);
   return type;
 }
 

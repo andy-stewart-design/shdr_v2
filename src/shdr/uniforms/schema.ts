@@ -29,10 +29,7 @@ export type Vec4UniformSpec = BaseUniformSpec<
   [number, number, number, number]
 >;
 
-export type Texture2DUniformSpec = BaseUniformSpec<
-  "texture2D",
-  TextureUrl
-> & {
+export type Texture2DUniformSpec = BaseUniformSpec<"texture2D", TextureUrl> & {
   accept?: TextureFileExtension[];
 };
 

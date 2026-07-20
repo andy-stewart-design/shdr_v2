@@ -85,7 +85,9 @@ export const builtinSignatures: Readonly<Record<string, BuiltinSignature>> = {
             (args[0] === "vec2" && args[1] === "vec2"))) ||
         (args.length === 3 &&
           ((args[0] === "vec2" && args[1] === "float" && args[2] === "float") ||
-            (args[0] === "float" && args[1] === "vec2" && args[2] === "float"))) ||
+            (args[0] === "float" &&
+              args[1] === "vec2" &&
+              args[2] === "float"))) ||
         (args.length === 4 && args.every((type) => type === "float")))
         ? undefined
         : "expects float components or compatible vec2/vec3 combinations",
@@ -145,7 +147,9 @@ export const builtinSignatures: Readonly<Record<string, BuiltinSignature>> = {
   },
   mix: {
     validate: (args, result) =>
-      args.length === 3 && args[2] === "float" && hasMatchingGenFloatArgs(args.slice(0, 2), result)
+      args.length === 3 &&
+      args[2] === "float" &&
+      hasMatchingGenFloatArgs(args.slice(0, 2), result)
         ? undefined
         : "expects matching float/vector values and a float interpolation factor",
   },
@@ -167,8 +171,14 @@ export const builtinSignatures: Readonly<Record<string, BuiltinSignature>> = {
         ? undefined
         : "expects float/vector values with a scalar-compatible divisor",
   },
-  min: { validate: (args, result) => args.length === 2 ? sameGenFloat(args, result) : "expects two arguments" },
-  max: { validate: (args, result) => args.length === 2 ? sameGenFloat(args, result) : "expects two arguments" },
+  min: {
+    validate: (args, result) =>
+      args.length === 2 ? sameGenFloat(args, result) : "expects two arguments",
+  },
+  max: {
+    validate: (args, result) =>
+      args.length === 2 ? sameGenFloat(args, result) : "expects two arguments",
+  },
   clamp: {
     validate: (args, result) =>
       args.length === 3 && hasMatchingGenFloatArgs(args, result)
@@ -183,19 +193,27 @@ export const builtinSignatures: Readonly<Record<string, BuiltinSignature>> = {
   },
   reflect: {
     validate: (args, result) =>
-      args.length === 2 && args[0] === args[1] && args[0] === result && FLOAT_TYPES.has(result)
+      args.length === 2 &&
+      args[0] === args[1] &&
+      args[0] === result &&
+      FLOAT_TYPES.has(result)
         ? undefined
         : "expects matching float/vector incident and normal values",
   },
   atan: {
     validate: (args, result) =>
-      (args.length === 1 || args.length === 2) && hasMatchingGenFloatArgs(args, result)
+      (args.length === 1 || args.length === 2) &&
+      hasMatchingGenFloatArgs(args, result)
         ? undefined
         : "expects one or two float/vector arguments",
   },
 };
 
-function validateBuiltin(name: string, args: GlslType[], result: GlslType): void {
+function validateBuiltin(
+  name: string,
+  args: GlslType[],
+  result: GlslType,
+): void {
   const signature = unaryGenFloatNames.has(name)
     ? { validate: unaryGenFloat }
     : builtinSignatures[name];
@@ -212,7 +230,11 @@ function validateArithmetic(
 ): void {
   if (left === "sampler2D" || right === "sampler2D")
     throw new Error(`Invalid ${op} operation on sampler2D values.`);
-  if (op === "*" && ((left === "mat2" && right === "vec2") || (left === "vec2" && right === "mat2"))) {
+  if (
+    op === "*" &&
+    ((left === "mat2" && right === "vec2") ||
+      (left === "vec2" && right === "mat2"))
+  ) {
     if (result === "vec2") return;
   } else if (left === right && result === left) {
     return;
@@ -221,7 +243,9 @@ function validateArithmetic(
   } else if (right === "float" && result === left) {
     return;
   }
-  throw new Error(`Invalid ${left} ${op} ${right} operation producing ${result}.`);
+  throw new Error(
+    `Invalid ${left} ${op} ${right} operation producing ${result}.`,
+  );
 }
 
 function validateNode(node: AstNode, functions: Map<string, FnDef>): void {
@@ -234,7 +258,12 @@ function validateNode(node: AstNode, functions: Map<string, FnDef>): void {
       validateNode(node.expr, functions);
       const baseType = glslTypeOfNode(node.expr);
       const channels = SWIZZLE_CHANNELS[baseType];
-      if (!channels || node.field.length < 1 || node.field.length > 4 || [...node.field].some((channel) => !channels.includes(channel))) {
+      if (
+        !channels ||
+        node.field.length < 1 ||
+        node.field.length > 4 ||
+        [...node.field].some((channel) => !channels.includes(channel))
+      ) {
         throw new Error(`Invalid ${node.field} swizzle on ${baseType}.`);
       }
       return;
@@ -247,7 +276,12 @@ function validateNode(node: AstNode, functions: Map<string, FnDef>): void {
     case "binop":
       validateNode(node.left, functions);
       validateNode(node.right, functions);
-      validateArithmetic(node.op, glslTypeOfNode(node.left), glslTypeOfNode(node.right), result);
+      validateArithmetic(
+        node.op,
+        glslTypeOfNode(node.left),
+        glslTypeOfNode(node.right),
+        result,
+      );
       return;
     case "unary":
       validateNode(node.operand, functions);
@@ -256,42 +290,57 @@ function validateNode(node: AstNode, functions: Map<string, FnDef>): void {
       return;
     case "fncall": {
       const definition = functions.get(node.name);
-      if (!definition) throw new Error(`Unknown shader function "${node.name}".`);
+      if (!definition)
+        throw new Error(`Unknown shader function "${node.name}".`);
       const params = Object.entries(definition.params);
       if (node.args.length !== params.length)
-        throw new Error(`Function "${node.name}" expects ${params.length} arguments, received ${node.args.length}.`);
+        throw new Error(
+          `Function "${node.name}" expects ${params.length} arguments, received ${node.args.length}.`,
+        );
       node.args.forEach((argument, index) => {
         validateNode(argument, functions);
         const [paramName, paramType] = params[index];
         if (glslTypeOfNode(argument) !== paramType)
-          throw new Error(`Function "${node.name}" parameter "${paramName}" expects ${paramType}, received ${glslTypeOfNode(argument)}.`);
+          throw new Error(
+            `Function "${node.name}" parameter "${paramName}" expects ${paramType}, received ${glslTypeOfNode(argument)}.`,
+          );
       });
       if (result !== definition.returnType)
-        throw new Error(`Function "${node.name}" has inconsistent return type ${result}.`);
+        throw new Error(
+          `Function "${node.name}" has inconsistent return type ${result}.`,
+        );
     }
   }
 }
 
 /** Validate all semantic invariants before a target emitter sees the program. */
 export function validateProgram(program: ShaderProgram): void {
-  const functions = new Map(program.functions.map((definition) => [definition.name, definition]));
+  const functions = new Map(
+    program.functions.map((definition) => [definition.name, definition]),
+  );
   const symbols = new Set<string>();
   for (const constant of program.constants) {
-    if (symbols.has(constant.name)) throw new Error(`Duplicate shader symbol "${constant.name}".`);
+    if (symbols.has(constant.name))
+      throw new Error(`Duplicate shader symbol "${constant.name}".`);
     symbols.add(constant.name);
     validateNode(constant.value, functions);
   }
   for (const statement of program.statements) {
     if (statement.type === "let") {
-      if (symbols.has(statement.name)) throw new Error(`Duplicate shader symbol "${statement.name}".`);
+      if (symbols.has(statement.name))
+        throw new Error(`Duplicate shader symbol "${statement.name}".`);
       symbols.add(statement.name);
     }
     validateNode(statement.value, functions);
-    if (statement.type === "assign" && glslTypeOfNode(statement.value) !== "vec4")
+    if (
+      statement.type === "assign" &&
+      glslTypeOfNode(statement.value) !== "vec4"
+    )
       throw new Error("Shader output must be a vec4 expression.");
   }
   for (const definition of program.functions) {
-    for (const statement of definition.body) validateNode(statement.value, functions);
+    for (const statement of definition.body)
+      validateNode(statement.value, functions);
     validateNode(definition.returnExpr, functions);
   }
 }
