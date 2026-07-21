@@ -5,7 +5,10 @@ import type {
   Vec3UniformSpec,
   Vec4UniformSpec,
 } from "./schema";
-import type { InternalRuntimeUniforms } from "./runtime";
+import type {
+  InternalRuntimeUniforms,
+  TextureStatus,
+} from "./runtime";
 
 type FloatRuntimeUniform = InternalRuntimeUniforms<{
   value: FloatUniformSpec;
@@ -32,7 +35,9 @@ type RuntimeUniformHandle =
 
 function isTexture2DUniform(
   uniform: RuntimeUniformHandle,
-): uniform is Texture2DRuntimeUniform {
+): uniform is Texture2DRuntimeUniform & {
+  setStatus(status: TextureStatus): void;
+} {
   return uniform.schema.type === "texture2D";
 }
 
@@ -79,6 +84,7 @@ export function createWebGLUniformBinding(
   const location = gl.getUniformLocation(program, `u_${name}`);
 
   if (isTexture2DUniform(uniform)) {
+    const textureUniform = uniform;
     const resolutionLocation = gl.getUniformLocation(
       program,
       `u_${name}_resolution`,
@@ -108,6 +114,7 @@ export function createWebGLUniformBinding(
 
     function loadTexture(source: string | File | Blob) {
       const currentLoadId = ++loadId;
+      textureUniform.setStatus({ state: "loading" });
       const image = new Image();
       const objectUrl =
         source instanceof Blob ? URL.createObjectURL(source) : null;
@@ -135,13 +142,19 @@ export function createWebGLUniformBinding(
             image.naturalHeight,
           );
         }
+        textureUniform.setStatus({
+          state: "ready",
+          width: image.naturalWidth,
+          height: image.naturalHeight,
+        });
       };
       image.onerror = () => {
         if (objectUrl) URL.revokeObjectURL(objectUrl);
         if (destroyed || currentLoadId !== loadId) return;
-        console.warn(`Failed to load texture uniform "${name}" from ${url}`);
-        // Retry is handled automatically: texture uniforms skip equality
-        // checks in set(), so calling .set(sameUrl) always triggers a reload.
+        textureUniform.setStatus({
+          state: "error",
+          error: new Error(`Failed to load texture uniform "${name}" from ${url}`),
+        });
       };
       image.src = url;
     }

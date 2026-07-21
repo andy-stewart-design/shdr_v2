@@ -67,6 +67,24 @@ describe("uniform baseline", () => {
     ).toThrow("must use a serializable URL string default");
   });
 
+  it("notifies texture status subscribers and supports unsubscribe", () => {
+    const schema = defineUniforms((u) => ({
+      texture: u.texture2D("https://example.test/image.png"),
+    }));
+    const texture = createRuntimeUniforms(schema).texture;
+    const statuses: string[] = [];
+    const unsubscribe = texture.onStatusChange((status) => {
+      statuses.push(status.state);
+    });
+
+    texture.setStatus({ state: "loading" });
+    unsubscribe();
+    texture.setStatus({ state: "ready", width: 10, height: 20 });
+
+    expect(statuses).toEqual(["loading"]);
+    expect(texture.status).toEqual({ state: "ready", width: 10, height: 20 });
+  });
+
   it("marks a texture dirty even when reset to the same URL", () => {
     const schema = defineUniforms((u) => ({
       texture: u.texture2D("https://example.test/image.png"),

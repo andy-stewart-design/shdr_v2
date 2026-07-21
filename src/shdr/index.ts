@@ -22,7 +22,9 @@ export type {
   UniformSpecHelpers,
   RuntimeUniform,
   RuntimeUniforms,
+  RuntimeTextureUniform,
   RuntimeEnvironment,
+  TextureStatus,
 } from "./uniforms";
 export type { FragmentFn } from "./context/fragment";
 export type { Builtins } from "./context/builtins";

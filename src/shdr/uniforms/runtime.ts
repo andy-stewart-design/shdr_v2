@@ -23,6 +23,19 @@ export type RuntimeUniform<
   set(value: TValue): void;
 };
 
+export type TextureStatus =
+  | { state: "idle" }
+  | { state: "loading" }
+  | { state: "ready"; width: number; height: number }
+  | { state: "error"; error: Error };
+
+export type RuntimeTextureUniform<
+  TSpec extends Texture2DUniformSpec = Texture2DUniformSpec,
+> = RuntimeUniform<TextureSource, TSpec> & {
+  readonly status: TextureStatus;
+  onStatusChange(listener: (status: TextureStatus) => void): () => void;
+};
+
 type InternalRuntimeUniform<
   TValue = UniformSpec["value"],
   TSpec extends UniformSpec = UniformSpec,
@@ -30,12 +43,34 @@ type InternalRuntimeUniform<
   consumeDirty(): boolean;
 };
 
+type TextureStatusControls = {
+  readonly status: TextureStatus;
+  onStatusChange(listener: (status: TextureStatus) => void): () => void;
+  setStatus(status: TextureStatus): void;
+};
+
+export type InternalRuntimeTextureUniform<
+  TSpec extends Texture2DUniformSpec = Texture2DUniformSpec,
+> = RuntimeTextureUniform<TSpec> & {
+  consumeDirty(): boolean;
+  setStatus(status: TextureStatus): void;
+};
+
+type RuntimeUniformFor<S extends UniformSpec> = S extends Texture2DUniformSpec
+  ? RuntimeTextureUniform<S>
+  : RuntimeUniform<UniformSpecValue<S>, S>;
+
+type InternalRuntimeUniformFor<S extends UniformSpec> =
+  S extends Texture2DUniformSpec
+    ? InternalRuntimeTextureUniform<S>
+    : InternalRuntimeUniform<UniformSpecValue<S>, S>;
+
 export type RuntimeUniforms<U extends UniformSchema> = {
-  readonly [K in keyof U]: RuntimeUniform<UniformSpecValue<U[K]>, U[K]>;
+  readonly [K in keyof U]: RuntimeUniformFor<U[K]>;
 };
 
 export type InternalRuntimeUniforms<U extends UniformSchema> = {
-  readonly [K in keyof U]: InternalRuntimeUniform<UniformSpecValue<U[K]>, U[K]>;
+  readonly [K in keyof U]: InternalRuntimeUniformFor<U[K]>;
 };
 
 function equalValue(
@@ -71,9 +106,17 @@ function initialValue(schema: UniformSpec, environment: RuntimeEnvironment) {
 function makeRuntimeUniformHandle(
   schema: UniformSpec,
   environment: RuntimeEnvironment,
-): InternalRuntimeUniform<RuntimeUniformValue, UniformSpec> {
+): InternalRuntimeUniform<RuntimeUniformValue, UniformSpec> &
+  TextureStatusControls {
   let value: RuntimeUniformValue = copyValue(initialValue(schema, environment));
   let dirty = true;
+  let status: TextureStatus = { state: "idle" };
+  const statusListeners = new Set<(next: TextureStatus) => void>();
+
+  function setStatus(next: TextureStatus) {
+    status = next;
+    for (const listener of statusListeners) listener(status);
+  }
 
   return {
     schema,
@@ -85,6 +128,14 @@ function makeRuntimeUniformHandle(
       value = copyValue(nextValue);
       dirty = true;
     },
+    get status() {
+      return status;
+    },
+    onStatusChange(listener: (next: TextureStatus) => void) {
+      statusListeners.add(listener);
+      return () => statusListeners.delete(listener);
+    },
+    setStatus,
     consumeDirty() {
       const wasDirty = dirty;
       dirty = false;
